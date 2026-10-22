@@ -2012,7 +2012,8 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 let last=performance.now();
 let FADEDT=0;const SVC={cam:Math.PI};
-function loop(now){FADEDT=Math.min(.5,(now-last)/1000);const dt=Math.min(.05,(now-last)/1000);last=now;
+let paused=false;/* the app pauses drawing while a full screen covers the 3D */
+function loop(now){if(paused){last=now;requestAnimationFrame(loop);return;}FADEDT=Math.min(.5,(now-last)/1000);const dt=Math.min(.05,(now-last)/1000);last=now;
   if(fly){const k=Math.min(1,(now-fly.s)/fly.d),e=ease(k);camera.position.lerpVectors(fly.p0,fly.p,e);controls.target.lerpVectors(fly.t0,fly.t,e);if(k>=1)fly=null;}
   controls.autoRotate=(tab==='bike'||!!SYSDEF[tab])&&autoRot&&!fly;
   const anim=(tab==='engine'||tab==='drive')&&playing&&explode<0.02;updateClip();
@@ -2184,7 +2185,7 @@ function setPlate(txt){txt=String(txt||'').trim().toUpperCase().slice(0,12);
   if(!plateMesh){const p=P.tail;let blank=null;p.g.traverse(o=>{if(o.isMesh&&o.geometry&&o.geometry.type==='ExtrudeGeometry'&&o.userData.scan)blank=o;});if(!blank)return false;
     const c=document.createElement('canvas');c.width=512;c.height=405;const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;
     const m=new THREE.Mesh(new THREE.PlaneGeometry(214,168),new THREE.MeshStandardMaterial({map:tex,roughness:.5,metalness:0,transparent:true}));
-    m.userData.own=true;m.position.z=-2.4;m.rotation.y=Math.PI;blank.add(m);plateMesh={m,c,tex};}
+    m.userData.baseOpacity=1;m.userData.part='tail';m.position.z=-2.4;m.rotation.y=Math.PI;blank.add(m);plateMesh={m,c,tex};}
   const {m,c,tex}=plateMesh;const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);m.visible=!!txt;if(!txt)return true;
   x.fillStyle='#F4F5F2';x.beginPath();x.roundRect?x.roundRect(4,4,504,397,22):x.rect(4,4,504,397);x.fill();x.lineWidth=10;x.strokeStyle='#15181B';x.stroke();
   const parts=txt.split(/\s+/);let l1=txt,l2='';if(txt.length>5&&parts.length>1){l2=parts.pop();l1=parts.join(' ');}
@@ -2213,6 +2214,6 @@ window.R9T={
   opOpen(id){curOp=OPS.find(o=>o.id===id)||null;curStep=0;setTab('service');return curOp;},
   opStep(i){if(!curOp)return;curStep=Math.max(0,Math.min(curOp.steps.length-1,i));setTargets();goView(curOp.steps[curStep].v);},
   opClose(){curOp=null;curStep=0;},
-  resize,setInset(px){insetB=Math.max(0,px|0);applyInset();camera.updateProjectionMatrix();}};
+  setPaused(v){paused=!!v;},resize,setInset(px){insetB=Math.max(0,px|0);applyInset();camera.updateProjectionMatrix();}};
 window.THREE=THREE;window.__r9t={setTab,openOp,P,goView,setStep:(i)=>{curStep=i;renderStep();setTargets();goView(curOp.steps[i].v);},goViewRaw:(V)=>{camera.position.set(...V.p).multiplyScalar(S);controls.target.set(...V.t).multiplyScalar(S);fly=null;}};
 })();

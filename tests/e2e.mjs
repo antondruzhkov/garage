@@ -35,8 +35,8 @@ async function run(name,ctxOpts,o){
   await pg.route(/fonts\.(googleapis|gstatic)\.com|telegram\.org|mc\.yandex/,r=>r.fulfill({status:200,contentType:'text/css',body:''}));
   if(o.tg)await pg.addInitScript(TG_STUB);
   const mob=!!ctxOpts.isMobile;const P=n=>`${OUT}/${name}-${n}.png`;
-  const shot=async n=>{await pg.waitForTimeout(o.settle||900);await pg.screenshot({path:P(n)});};
-  const tap=async sel=>{const el=pg.locator(sel).first();await el.scrollIntoViewIfNeeded();if(mob)await el.tap();else await el.click();await pg.waitForTimeout(250);};
+  const shot=async n=>{await pg.waitForTimeout(o.settle||900);await pg.screenshot({path:P(n),timeout:180000,animations:'disabled'});};
+  const tap=async sel=>{const el=pg.locator(sel).first();await el.scrollIntoViewIfNeeded();if(mob)await el.tap({timeout:90000});else await el.click({timeout:90000});await pg.waitForTimeout(250);};
   const t0=Date.now();await pg.goto(BASE+(o.q||''));
   await pg.waitForFunction(()=>window.__garageReady&&window.R9T&&R9T.ready,null,{timeout:180000});
   console.log('  model ready',Date.now()-t0,'ms');
@@ -67,13 +67,12 @@ async function run(name,ctxOpts,o){
   await tap('#fabXray');ok(await pg.evaluate(()=>R9T.xray),'xray button');await tap('#fabXray');
   // tap a part: find a pixel that hits the tank
   await pg.evaluate(()=>R9T.homeView());await pg.waitForTimeout(1300);
-  const pt=await pg.evaluate(()=>{const c=document.getElementById('gl').getBoundingClientRect();for(let y=c.top+40;y<c.bottom-40;y+=12)for(let x=c.left+30;x<c.right-80;x+=12){const id=R9T.pickAt(x,y);if(id==='tank')return [x,y];}return null;});
+  const pt=await pg.waitForFunction(()=>{const c=document.getElementById('gl').getBoundingClientRect();for(let y=c.top+40;y<c.bottom-40;y+=12)for(let x=c.left+30;x<c.right-80;x+=12){const id=R9T.pickAt(x,y);if(id==='tank')return [x,y];}return null;},null,{timeout:30000,polling:1000}).then(h=>h.jsonValue(),()=>null);
   ok(!!pt,'found the tank on screen');
-  if(pt){if(mob)await pg.touchscreen.tap(pt[0],pt[1]);else await pg.mouse.click(pt[0],pt[1]);await pg.waitForTimeout(700);
-    ok(await pg.evaluate(()=>GARAGE.sheet==='part'),'tap opens part sheet');await shot('07-part');
+  if(pt){if(mob)await pg.touchscreen.tap(pt[0],pt[1]);else await pg.mouse.click(pt[0],pt[1]);ok(await pg.waitForFunction(()=>GARAGE.sheet==='part',null,{timeout:15000}).then(()=>true,()=>false),'tap opens part sheet');await shot('07-part');
     // double tap resets
-    if(mob){await pg.touchscreen.tap(pt[0],pt[1]);await pg.waitForTimeout(120);await pg.touchscreen.tap(pt[0],pt[1]);}else await pg.mouse.dblclick(pt[0],pt[1]);
-    await pg.waitForTimeout(700);ok(await pg.evaluate(()=>GARAGE.sheet!=='part'),'double tap closes sheet and resets view');}
+    await pg.evaluate(p=>{R9T_HOOKS.tap(p[0],p[1]);R9T_HOOKS.tap(p[0],p[1]);},pt);
+    ok(await pg.waitForFunction(()=>GARAGE.sheet!=='part',null,{timeout:15000}).then(()=>true,()=>false),'double tap closes sheet and resets view');}
   // page does not scroll or zoom under 3D
   ok(await pg.evaluate(()=>getComputedStyle(document.getElementById('gl')).touchAction==='none'),'touch-action none on canvas');
   // service

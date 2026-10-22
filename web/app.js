@@ -130,7 +130,7 @@ let view='garage',sec='bike',opMode=false;
 const SCREENS={service:$('scr-service'),catalog:$('scr-catalog'),custom:$('scr-custom'),cabinet:$('scr-cabinet')};
 function setView(v,opts){opts=opts||{};if(v!=='garage'&&sheetKind&&sheetKind!=='keep')closeSheet(true);
   if(opMode&&v!=='garage')exitOp(true);
-  view=v;app.dataset.view=v;
+  view=v;app.dataset.view=v;E.setPaused(v!=='garage');
   Object.keys(SCREENS).forEach(k=>{SCREENS[k].hidden=k!==v;});
   document.querySelectorAll('#tabbar button').forEach(b=>{if(b.dataset.view===v)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
   if(v==='service')renderService();else if(v==='catalog')renderCatalog(opts);else if(v==='custom')renderCustom();else if(v==='cabinet')renderCabinet();
