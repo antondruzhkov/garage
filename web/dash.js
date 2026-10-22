@@ -107,7 +107,7 @@ function dial(){
   <g id="lcdg"><rect x="178" y="372" width="244" height="104" rx="10" fill="url(#lcd)" stroke="#2C333A" stroke-width="2"/>
    <g id="lsym" transform="translate(190,388)" color="#FFB020"></g>
    <text id="llab" x="410" y="402" text-anchor="end" font-size="17" fill="#C9E8FF" font-family="Menlo,Consolas,monospace" letter-spacing="1">ODO</text>
-   <text id="lval" x="378" y="458" text-anchor="end" font-size="44" fill="#E8F6FF" font-family="Menlo,Consolas,monospace" font-weight="700">18420</text>
+   <text id="lval" x="378" y="458" text-anchor="end" font-size="44" fill="#E8F6FF" font-family="Menlo,Consolas,monospace" font-weight="700">-----</text>
    <text id="lunit" x="410" y="458" text-anchor="end" font-size="17" fill="#C9E8FF" font-family="Menlo,Consolas,monospace">km</text></g>
   <circle id="dwaled" cx="300" cy="518" r="6" fill="#2A0C0C" stroke="#3A3F45"/>
   <text x="300" y="545" text-anchor="middle" font-size="11" fill="#5E6670" font-family="Arial,sans-serif" letter-spacing="2">DWA</text>
@@ -125,7 +125,7 @@ function setLamp(k,mode){const g=$('lp-'+k);if(!g)return;const c=g.dataset.c,on=
   lg.style.filter=on?`drop-shadow(0 0 6px ${c})`:'none';}
 function setLcd(o){o=o||{};$('lsym').innerHTML=o.sym?`<svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${IC[o.sym]}</svg>`:'';
   $('lsym').classList.toggle('b1',!!o.symBlink);
-  $('llab').textContent=o.lab!=null?o.lab:'ODO';$('lval').textContent=o.val!=null?o.val:'18420';$('lunit').textContent=o.unit!=null?o.unit:'km';}
+  $('llab').textContent=o.lab!=null?o.lab:'ODO';$('lval').textContent=o.val!=null?o.val:odo();$('lunit').textContent=o.unit!=null?o.unit:'km';}
 function state(L,lcd){LAMPS.forEach(([k])=>setLamp(k,(L||{})[k]||'off'));setLcd(lcd);}
 function dwa(n){clearT();const led=$('dwaled');let i=0;
   const seq=()=>{for(let k=0;k<n;k++){timers.push(setTimeout(()=>led.setAttribute('fill','#FF2A1E'),k*420));timers.push(setTimeout(()=>led.setAttribute('fill','#2A0C0C'),k*420+220));}timers.push(setTimeout(seq,n*420+1400));};seq();}
@@ -198,7 +198,10 @@ function panel(el){el.innerHTML=panelHTML();
   $('preride').onclick=preRide;
   if(sel)show(sel);else state({n:'on'},{});}
 function onShow(){if(!sel){preRide();}}
-window.DASH={panel,onShow};
+/* ODO shows the owner's own mileage (set by the app), placeholder dashes until it is known */
+function odo(){const k=window.GARAGE_ODO;return k!=null&&isFinite(k)?String(Math.min(999999,Math.max(0,Math.round(k)))):'-----';}
+function setOdo(){const l=$('llab'),v=$('lval');if(l&&v&&l.textContent==='ODO')v.textContent=odo();}
+window.DASH={panel,onShow,setOdo};
 
 /* ================= music: generative lo-fi, WebAudio ================= */
 let AC=null,master=null,playing=false,sched=null,nextT=0,step=0,crackle=null;

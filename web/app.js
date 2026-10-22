@@ -77,26 +77,31 @@ const DUE=[
 const OPDUE={oilChange:'oil',valves:'valves',spark:'spark',fd:'fd'};
 const SOON_KM=1000,SOON_D=30;
 function addMonths(iso,mo){const d=new Date(iso+'T12:00:00');d.setMonth(d.getMonth()+mo);return d;}
+/* last time an item was done: history records and the last ТО (with what was done on it).
+   An old «последнее ТО» without a list counts as the regular 10 000 km service of the r9t schedule (oil + filter, valve clearances), shown openly. */
+const TO_DEFAULT=['oil','valves'];
+const toItems=()=>{const lt=S().bike.lastTo;return Array.isArray(lt.items)?lt.items:TO_DEFAULT;};
+const hasTo=()=>{const lt=S().bike.lastTo;return lt.km!=null||!!lt.date;};
 function lastDone(it){let best=null;
   S().history.forEach(h=>{const hit=(h.items||[]).indexOf(it.id)>=0||(h.opId&&OPDUE[h.opId]===it.id);
     if(hit&&(!best||(h.km||0)>(best.km||0)||((h.km||0)===(best.km||0)&&h.date>best.date)))best={km:h.km,date:h.date,src:'h'};});
-  const lt=S().bike.lastTo;if(it.to&&(lt.km!=null||lt.date)){const c={km:lt.km,date:lt.date,src:'to'};if(!best||(c.km||0)>(best.km||0))best=c;}
+  const lt=S().bike.lastTo;if(hasTo()&&toItems().indexOf(it.id)>=0){const c={km:lt.km,date:lt.date,src:'to'};if(!best||(c.km||0)>(best.km||0))best=c;}
   return best;}
-function dueOf(it){const km=S().bike.km,ld=lastDone(it);const r={it,ld,st:'na',txt:''};
+const intervalTxt=it=>[it.km?`${nf(it.km)} км`:'',it.mo?(it.mo>=12?`${it.mo/12} ${plural(it.mo/12,'год','года','лет')}`:`${it.mo} мес`):''].filter(Boolean).join(' или ');
+function dueOf(it){const km=S().bike.km,ld=lastDone(it);const r={it,ld,st:'na',txt:'',leftKm:null,leftD:null};
+  if(!ld){r.txt='Не знаем, когда делали';return r;}
   let leftKm=null,dueDate=null;
-  if(it.km&&km!=null){if(ld&&ld.km!=null)leftKm=ld.km+it.km-km;else{leftKm=Math.ceil((km+1)/it.km)*it.km-km;r.sched=true;}}
-  if(it.mo&&ld&&ld.date)dueDate=addMonths(ld.date,it.mo);
+  if(it.km&&km!=null&&ld.km!=null)leftKm=ld.km+it.km-km;
+  if(it.mo&&ld.date)dueDate=addMonths(ld.date,it.mo);
   const leftD=dueDate?Math.ceil((dueDate-Date.now())/DAY):null;
+  if(leftKm==null&&leftD==null){r.txt='В записи нет пробега и даты';return r;}
   const over=(leftKm!=null&&leftKm<=0)||(leftD!=null&&leftD<=0),soon=(leftKm!=null&&leftKm<=SOON_KM)||(leftD!=null&&leftD<=SOON_D);
   const parts=[];if(leftKm!=null)parts.push(leftKm<=0?`просрочено на ${nf(-leftKm)} км`:`через ${nf(leftKm)} км`);
   if(leftD!=null)parts.push(leftD<=0?'срок прошёл':`до ${fmtDate(dueDate.toISOString().slice(0,10))}`);
-  if(leftKm==null&&leftD==null){r.st='na';r.txt=km==null?'укажи пробег':'нет записи. Уточни по сервисной книжке BMW';}
-  else{r.st=over?'over':soon?'soon':'ok';r.txt=parts.join(' · ');
-    if(it.mo&&!dueDate)r.txt+=` · по сроку: раз в ${it.mo>=12?it.mo/12+' '+plural(it.mo/12,'год','года','лет'):it.mo+' мес'}, нет даты`;
-    if(r.sched&&!ld)r.txt+=' (по регламенту, записи нет)';}
-  r.leftKm=leftKm;r.leftD=leftD;return r;}
+  r.st=over?'over':soon?'soon':'ok';r.txt=(over?'Пора: ':'')+parts.join(', ');r.leftKm=leftKm;r.leftD=leftD;return r;}
 function dueAll(){const rank={over:0,soon:1,ok:2,na:3};return DUE.map(dueOf).sort((a,b)=>rank[a.st]-rank[b.st]||((a.leftKm==null?1e9:a.leftKm)-(b.leftKm==null?1e9:b.leftKm)));}
-function nextTo(){const r=dueOf(DUE[0]);return r;}
+/* the header shows the nearest job of the plan, not just the oil */
+function nextTo(){const k=dueAll().filter(r=>r.st!=='na');return k[0]||dueOf(DUE[0]);}
 
 /* ================= toast ================= */
 let toastT=null;
@@ -150,13 +155,13 @@ function syncBack(){if(!inTG||!tgv('6.1'))return;const need=!!sheetKind||opMode|
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(back())e.preventDefault();}});
 
 /* ================= header ================= */
-function renderHeader(){const b=S().bike;
+function renderHeader(){const b=S().bike;window.GARAGE_ODO=b.km;try{if(window.DASH&&DASH.setOdo)DASH.setOdo();}catch(e){}
   $('hPlate').textContent=b.plate?b.plate.toUpperCase():'R nineT';
   $('hKm').textContent=b.km!=null?nf(b.km)+' км':'пробег ?';
   const t=$('hTo');t.classList.remove('due');
   if(b.km==null){t.textContent='до ТО: укажи пробег';return;}
   const r=nextTo();
-  if(r.leftKm==null){t.textContent='до ТО: укажи последнее ТО';return;}
+  if(r.st==='na'||r.leftKm==null){t.textContent='до ТО: укажи последнее ТО';return;}
   if(r.st==='over'){t.textContent=r.leftKm<=0?`ТО просрочено на ${nf(-r.leftKm)} км`:'ТО: срок прошёл';t.classList.add('due');}
   else{t.textContent=`до ТО ${nf(r.leftKm)} км`+(r.leftD!=null&&r.leftD<=60?` или ${r.leftD} дн.`:'');if(r.st==='soon')t.classList.add('due');}}
 $('who').onclick=()=>setView('cabinet');
@@ -241,7 +246,7 @@ function startOp(id){const o=E.OPS.find(x=>x.id===id);if(!o)return;
   if(!canOp(id)){openPro('op');return;}
   if(view!=='garage')setView('garage');closeSheet(true);
   opMode=true;app.classList.add('op');$('opbar').hidden=false;$('opTitle').textContent=o.t;
-  $('catPill').hidden=true;E.select(null);E.opOpen(id);track('op_opened',{id});renderStep();syncBack();}
+  $('catPill').hidden=true;E.select(null);E.opOpen(id);track('op_opened',{id});renderStep();syncBack();requestAnimationFrame(()=>{syncInset();E.opResetView();});}
 function renderStep(){const o=E.op;if(!o)return;const i=E.step,s=o.steps[i],z=ZONE[o.id]||'r',last=i===o.steps.length-1;
   const html=`<div class="stepno">ШАГ ${i+1} ИЗ ${o.steps.length} · ${esc(o.time)}</div>
    <div class="step"><h4>${esc(s.h)}</h4>
@@ -249,13 +254,17 @@ function renderStep(){const o=E.op;if(!o)return;const i=E.step,s=o.steps[i],z=ZO
    <p>${esc(s.x)}</p>
    ${s.facts?`<div class="facts">${s.facts.map(f=>`<span class="fact ${f[2]||''}">${esc(f[0])}: ${esc(f[1])}${f[2]==='flag'?' · сверить':''}</span>`).join('')}</div>`:''}
    ${s.w?`<div class="warn">${esc(s.w)}</div>`:''}</div>
+   ${E.stepSide==='R'?'<p class="small muted" style="margin:0 0 6px">Показано на правом цилиндре. Слева то же самое.</p>':''}
+   <div class="row stepctl"><button class="chip" id="sView">Показать шаг</button><button class="chip" id="sGhost" aria-pressed="${E.ghost}">Остальное прозрачно</button></div>
    <div class="dots">${o.steps.map((_,k)=>`<i class="${k<=i?'on':''}"></i>`).join('')}</div>
    <div class="stepnav"><div class="row"><button class="btn" id="sPrev" ${i?'':'disabled'}>Назад</button>${last?'<button class="btn primary" id="sDone">Сделал</button>':'<button class="btn dark" id="sNext">Дальше</button>'}</div>
    <p class="disc">Совет, не замена сервиса BMW. Сомневаешься, едь в сервис.</p></div>`;
   const b=sheetKind==='step'?$('sbody'):openSheet('',{kind:'step',size:'low',label:o.t});b.innerHTML=html;b.scrollTop=0;
   b.querySelector('#sPrev').onclick=()=>{E.opStep(i-1);renderStep();};
   const n=b.querySelector('#sNext');if(n)n.onclick=()=>{E.opStep(i+1);renderStep();};
-  const d=b.querySelector('#sDone');if(d)d.onclick=()=>opDone(o);}
+  const d=b.querySelector('#sDone');if(d)d.onclick=()=>opDone(o);
+  b.querySelector('#sView').onclick=()=>{E.opResetView();haptic('sel');};
+  b.querySelector('#sGhost').onclick=e=>{E.setGhost(!E.ghost);e.currentTarget.setAttribute('aria-pressed',E.ghost);};}
 function opDone(o){const ok=addHistory({date:todayISO(),km:S().bike.km,what:o.t,opId:o.id,where:'Сам',items:OPDUE[o.id]?[OPDUE[o.id]]:[]},'op');
   if(!ok)return;track('op_done',{id:o.id});haptic('ok');exitOp(true);setView('service');toast('Записали в историю');}
 function exitOp(silent){if(!opMode)return;opMode=false;app.classList.remove('op');$('opbar').hidden=true;E.opClose();if(sheetKind==='step')closeSheet(true);
@@ -269,23 +278,58 @@ function addHistory(rec,source){const h=S().history;
   track('service_logged',{source:source||'manual',op:rec.opId||''});renderHeader();return true;}
 
 /* ================= service screen ================= */
-function renderService(){const el=SCREENS.service,b=S().bike,pro=isPro();
-  const due=b.km==null?[]:dueAll();
-  const dueRow=r=>`<li><button class="item" data-due="${r.it.id}"><span class="dot" style="background:${r.st==='over'?'var(--z-r)':r.st==='soon'?'var(--z-y)':r.st==='ok'?'var(--z-g)':'var(--line)'}"></span><b>${esc(r.it.t)}</b><span class="sub st ${r.st}">${esc(r.txt)}</span><span class="end"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span></button></li>`;
+const OPGROUPS=[
+  ['Регулярные проверки','Каждую третью заправку и перед поездкой. 5-10 минут, сам.',['oilLevel','brakes','clutch']],
+  ['Работы по регламенту','По пробегу или сроку. Когда какая пора, видно в «Что пора сделать».',['oilChange','spark','valves','fd']],
+  ['Если что-то не так','Диагностика: троит, дёргается, пропала тяга.',['deadCyl','coilSwap']]];
+const CHEV='<svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function renderService(){const el=SCREENS.service,b=S().bike,pro=isPro(),lt=b.lastTo;
+  const all=b.km==null?[]:dueAll(),known=all.filter(r=>r.st!=='na'),unknown=all.filter(r=>r.st==='na');
+  const dueRow=r=>`<li><button class="item" data-due="${r.it.id}"><span class="dot" style="background:${r.st==='over'?'var(--z-r)':r.st==='soon'?'var(--z-y)':'var(--z-g)'}"></span><b>${esc(r.it.t)}</b><span class="sub"><span class="st ${r.st}">${esc(r.txt)}</span><br>раз в ${esc(intervalTxt(r.it))}</span><span class="end">${CHEV}</span></button></li>`;
+  const used=new Set(OPGROUPS.flatMap(g=>g[2]));const rest=E.OPS.filter(o=>!used.has(o.id)).map(o=>o.id);
+  const groups=OPGROUPS.map(g=>g[2]===OPGROUPS[2][2]?[g[0],g[1],g[2].concat(rest)]:g);
+  const urgent=known.filter(r=>(r.st==='over'||r.st==='soon')&&r.it.op).map(r=>r.it.op);
   el.innerHTML=`<div class="wrap"><h1>Обслуживание</h1>
+   ${b.km==null?`<div class="card"><p style="margin:0 0 10px">Укажи пробег, без него не посчитать, что пора делать.</p><button class="btn primary block" id="setKm">Указать пробег</button></div>`:''}
+   <h2>Последнее ТО</h2>
+   ${hasTo()?`<div class="card toinfo"><div><b>${[lt.date?fmtDate(lt.date):'',lt.km!=null?nf(lt.km)+' км':''].filter(Boolean).join(', ')}</b>
+      <p class="small" style="margin:4px 0 0">${esc(toItems().map(i=>(DUE.find(d=>d.id===i)||{}).t).filter(Boolean).join(', ')||'ничего не отмечено')}${Array.isArray(lt.items)?'':' <span class="muted">(обычное ТО на 10 000 км; если не так, поправь)</span>'}</p></div>
+      <button class="btn" id="setTo">Изменить</button></div>`
+    :`<div class="card"><p style="margin:0 0 10px">Чтобы считать, что и когда пора, нужно знать последнее ТО: дату, пробег и что делали. Без этого ничего не советую.</p><button class="btn primary block" id="setTo">Указать последнее ТО</button></div>`}
    <h2>Что пора сделать</h2>
-   ${b.km==null?`<div class="card"><p style="margin:0 0 10px">Укажи пробег и последнее ТО: посчитаю, что пора делать по регламенту BMW.</p><button class="btn primary block" id="setKm">Указать пробег</button></div>`:
-     pro?`<ul class="list due">${due.map(dueRow).join('')}</ul>`:
-     `<ul class="list due">${due.slice(0,1).map(dueRow).join('')}</ul><div class="blur" style="margin-top:8px"><ul class="list due">${due.slice(1,4).map(dueRow).join('')}</ul><div class="gate"><button class="btn primary" id="dueGate">Весь план в Pro</button></div></div>`}
-   <p class="small muted">Интервалы из регламента BMW для Scrambler: 10 000 км или год, 20 000 км, 2 года, 6 лет или 40 000 км. Чего нет в книге, уточни по сервисной книжке BMW.</p>
+   ${known.length?(pro?`<ul class="list due">${known.map(dueRow).join('')}</ul>`:`<ul class="list due">${known.slice(0,1).map(dueRow).join('')}</ul>${known.length>1?`<div class="blur" style="margin-top:8px"><ul class="list due">${known.slice(1,4).map(dueRow).join('')}</ul><div class="gate"><button class="btn primary" id="dueGate">Весь план в Pro</button></div></div>`:''}`)
+     :`<p class="lead">${b.km==null?'Появится, когда укажешь пробег и последнее ТО.':'Появится, когда укажешь последнее ТО или отметишь работы в истории.'}</p>`}
+   ${unknown.length&&b.km!=null?`<div class="card"><b>Нет данных</b><p class="small" style="margin:4px 0 10px">Не знаем, когда делали: ${esc(unknown.map(r=>r.it.t.toLowerCase()).join(', '))}. Отметь, если делал, и я посчитаю срок. Если не помнишь, уточни по сервисной книжке BMW.</p><button class="btn block" id="unkLog">Отметить, что делал</button></div>`:''}
+   <p class="small muted">Интервалы из регламента BMW для Scrambler: 10 000 км или год, 20 000 км, 2 года, 6 лет или 40 000 км.</p>
    <h2>Операции</h2>
+   <p class="lead">Пошаговые инструкции на 3D-модели. Цвет точки: кто делает.</p>
    <div class="legend">${zoneChip('g')}${zoneChip('y')}${zoneChip('r')}</div>
-   <ul class="list" id="opl">${E.OPS.map(opItem).join('')}</ul>
+   ${urgent.length?`<h3 class="og">Пора по регламенту</h3><ul class="list">${urgent.map(id=>opItem(E.OPS.find(o=>o.id===id))).join('')}</ul>`:''}
+   ${groups.map(([h,d,ids])=>`<h3 class="og">${h}</h3><p class="small muted og-d">${d}</p><ul class="list">${ids.map(id=>E.OPS.find(o=>o.id===id)).filter(Boolean).map(opItem).join('')}</ul>`).join('')}
    <p class="disc">Совет, не замена сервиса BMW. Сомневаешься, едь в сервис.</p></div>`;
   bindOps(el);
   const k=el.querySelector('#setKm');if(k)k.onclick=()=>openBike();
+  el.querySelector('#setTo').onclick=()=>openLastTo();
+  const u=el.querySelector('#unkLog');if(u)u.onclick=()=>openHistoryForm({items:[]});
   const g=el.querySelector('#dueGate');if(g)g.onclick=()=>openPro('due');
   el.querySelectorAll('[data-due]').forEach(x=>x.onclick=()=>openDue(x.dataset.due));}
+/* last ТО: date, mileage and what was done; this is what the plan is counted from */
+function openLastTo(){const b=S().bike,lt=b.lastTo,sel=hasTo()?toItems():TO_DEFAULT;
+  const sh=openSheet(`<h2>Последнее ТО</h2><p class="lead">От него считаю, что и когда пора. Отметь, что делали.</p>
+   <div class="f2"><div class="f"><label for="tD">Дата</label><input id="tD" type="date" value="${esc(lt.date||'')}"></div>
+   <div class="f"><label for="tK">Пробег, км</label><input id="tK" type="number" inputmode="numeric" min="0" step="1" value="${lt.km!=null?lt.km:''}"></div></div>
+   <div class="f"><span>Что делали</span><div class="chips">${DUE.map(d=>`<button class="chip" data-it="${d.id}" aria-pressed="${sel.indexOf(d.id)>=0}">${esc(d.t)}</button>`).join('')}</div></div>
+   ${b.km==null?`<div class="f"><label for="tN">Пробег сейчас, км</label><input id="tN" type="number" inputmode="numeric" min="0" step="1"></div>`:''}
+   <button class="btn primary block" id="tSave">Сохранить</button>`,{kind:'lastto',size:'tall',label:'Последнее ТО'});
+  sh.querySelectorAll('[data-it]').forEach(c=>c.onclick=()=>c.setAttribute('aria-pressed',c.getAttribute('aria-pressed')!=='true'));
+  sh.querySelector('#tSave').onclick=()=>{const v=id=>{const e=sh.querySelector(id);return !e||e.value===''?null:Math.max(0,Math.round(+e.value));};
+    const date=sh.querySelector('#tD').value,km=v('#tK'),now=v('#tN');
+    if(!date&&km==null){toast('Укажи дату или пробег ТО');return;}
+    const items=[...sh.querySelectorAll('[data-it][aria-pressed="true"]')].map(x=>x.dataset.it);
+    const wasKm=S().bike.km;
+    store.set(s=>{s.bike.lastTo={date,km,items};if(now!=null)s.bike.km=now;if(km!=null&&(s.bike.km==null||km>s.bike.km))s.bike.km=km;if(s.bike.km!=null&&!s.pro.trialStart)s.pro.trialStart=Date.now();});
+    if(S().bike.km!==wasKm)track('mileage_set',{km:S().bike.km});
+    track('service_logged',{source:'last_to'});haptic('ok');closeSheet();renderHeader();if(view==='service')renderService();toast('Сохранили. План пересчитан');};}
 function openDue(id){const it=DUE.find(d=>d.id===id),r=dueOf(it),o=it.op&&E.OPS.find(x=>x.id===it.op);
   const ld=r.ld;
   const b=openSheet(`<div class="kicker">Регламент</div><h3 class="t">${esc(it.t)}</h3>
@@ -366,6 +410,8 @@ function renderCabinet(){const el=SCREENS.cabinet,st=S(),b=st.bike,u=tgUser(),pr
       <dt>Пробег</dt><dd>${b.km!=null?nf(b.km)+' км':'<span class="muted">не указан</span>'}</dd>
       <dt>Последнее ТО</dt><dd>${b.lastTo.date||b.lastTo.km!=null?[fmtDate(b.lastTo.date),b.lastTo.km!=null?nf(b.lastTo.km)+' км':''].filter(Boolean).join(', '):'<span class="muted">не указано</span>'}</dd></dl></div></div>
      <div class="row" style="margin-top:12px"><button class="btn" id="editBike">Изменить</button><button class="btn primary" id="mkCard">Карточка</button></div></div>
+   <h2>Мои карточки</h2>
+   ${st.cards.length?`<div class="album cards">${st.cards.slice().reverse().map(c=>`<button class="ph card9" data-card="${c.id}" aria-label="Карточка от ${esc(fmtDate(c.date))}"><span class="ph-load"></span><em>${esc(fmtDate(c.date))}</em></button>`).join('')}</div>`:'<p class="lead">Пока нет. Нажми «Карточка» выше: сохранится сюда.</p>'}
    <h2>История ТО</h2>
    <button class="btn block" id="addH" style="margin-bottom:10px">Добавить запись</button>
    ${hist.length?`<ul class="list hist">${hist.map(h=>{const ph=h.photo&&store.getPhoto(h.id);return `<li><button class="item" data-h="${h.id}">${ph?`<img class="thumb" src="${ph}" alt="">`:`<span class="ico"><svg viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0 5 5L21 13l-8 8-2-2 7-7-1.5-1.5a4 4 0 0 0-5-5l2.5 2.5-2 2z"/><path d="M3 21l6-6"/></svg></span>`}<b>${esc(h.what||'Обслуживание')}</b><span class="sub">${[fmtDate(h.date),h.km!=null?nf(h.km)+' км':'',h.where].filter(Boolean).map(esc).join(' · ')}</span></button></li>`;}).join('')}</ul>`:'<p class="lead">Пока пусто. Отметь операцию кнопкой «Сделал» или добавь запись сам.</p>'}
@@ -382,6 +428,9 @@ function renderCabinet(){const el=SCREENS.cabinet,st=S(),b=st.bike,u=tgUser(),pr
   el.querySelector('#proMore').onclick=()=>openPro('cabinet');
   const pa=el.querySelector('#phAdd');if(pa)pa.onchange=()=>addPhotos([...(pa.files||[])]);
   el.querySelectorAll('[data-ph]').forEach(x=>x.onclick=()=>openPhoto(x.dataset.ph));
+  el.querySelectorAll('[data-card]').forEach(x=>{const rec=st.cards.find(c=>c.id===x.dataset.card);x.onclick=()=>openCard(rec);});
+  /* thumbnails one per frame, so the screen opens at once */
+  const todo=[...el.querySelectorAll('[data-card]')];(function next(){const x=todo.shift();if(!x||view!=='cabinet')return;const rec=st.cards.find(c=>c.id===x.dataset.card);const u=rec&&cardThumb(rec);if(u)x.insertAdjacentHTML('afterbegin',`<img src="${u}" alt="">`);requestAnimationFrame(next);})();
   el.querySelectorAll('[data-h]').forEach(x=>x.onclick=()=>openRecord(x.dataset.h));}
 
 function openRecord(id){const h=S().history.find(x=>x.id===id);if(!h)return;const ph=h.photo&&store.getPhoto(h.id);
@@ -442,7 +491,7 @@ function openBike(first){const b=S().bike;let color=b.color,saved=false;
   sh.querySelector('#bSkip').onclick=()=>closeSheet();
   sh.querySelector('#bSave').onclick=()=>{const num=id=>{const v=sh.querySelector(id).value;return v===''?null:Math.max(0,Math.round(+v));};
     const km=num('#bK'),tk=num('#bTk'),wasKm=S().bike.km,wasAdded=S().bikeAdded;
-    store.set(s=>{s.bike.color=color;s.bike.plate=pl.value.trim().toUpperCase();s.bike.km=km;s.bike.lastTo={date:sh.querySelector('#bTd').value,km:tk};s.onboarded=true;
+    store.set(s=>{s.bike.color=color;s.bike.plate=pl.value.trim().toUpperCase();s.bike.km=km;s.bike.lastTo={date:sh.querySelector('#bTd').value,km:tk,items:s.bike.lastTo.items};s.onboarded=true;
       if(km!=null&&!s.pro.trialStart)s.pro.trialStart=Date.now();s.bikeAdded=true;});
     if(!wasAdded)track('bike_added',{color:colorName(color),plate:S().bike.plate?1:0});
     if(km!=null&&km!==wasKm)track('mileage_set',{km});
@@ -475,34 +524,45 @@ function openPro(reason){const pro=isPro(),w=S().pro.wanted,P=CFG.price||{};
 
 /* ================= card «мой байк» 1080x1350 ================= */
 function rrect(x,X,Y,w,h,r){x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath();}
-function drawCard(){const W=1080,Hh=1350,c=document.createElement('canvas');c.width=W;c.height=Hh;const x=c.getContext('2d'),b=S().bike;
+/* a card is stored as data (date, mileage, plate, colour, last ТО), the picture is rebuilt from the 3D: works in Telegram too */
+function lastToDate(){const b=S().bike,lt=b.lastTo,hist=S().history.slice().sort((a,c)=>(c.date||'').localeCompare(a.date||''))[0];
+  return hist&&hist.date&&(!lt.date||hist.date>lt.date)?hist.date:lt.date;}
+function cardRec(){const b=S().bike;return {id:uid(),date:todayISO(),km:b.km,plate:b.plate||'',color:b.color,to:lastToDate()||''};}
+function drawCard(rec){const W=1080,Hh=1350,c=document.createElement('canvas');c.width=W;c.height=Hh;const x=c.getContext('2d');
   const F='"Golos Text",system-ui,-apple-system,"Segoe UI",Arial,sans-serif',FD='"Unbounded","Golos Text",Arial,sans-serif';
-  let shot=null;try{shot=E.snapshot(1080,1080,'overall');}catch(e){console.warn('snapshot',e);}
+  let shot=null;try{E.setPaint(rec.color);E.setPlate(rec.plate);shot=E.snapshot(1080,1080,'overall');}catch(e){console.warn('snapshot',e);}
+  finally{try{E.setPaint(S().bike.color);E.setPlate(S().bike.plate);}catch(e){}}
   x.fillStyle='#121417';x.fillRect(0,0,W,Hh);
   if(shot)x.drawImage(shot,0,60,1080,1000,0,150,1080,1000);
   const g=x.createLinearGradient(0,880,0,1350);g.addColorStop(0,'rgba(18,20,23,0)');g.addColorStop(.35,'rgba(18,20,23,.92)');g.addColorStop(1,'#121417');x.fillStyle=g;x.fillRect(0,880,W,470);
   x.fillStyle='#121417';x.fillRect(0,0,W,150);
-  /* logo */
   x.fillStyle='#F2B705';rrect(x,60,44,64,64,16);x.fill();x.strokeStyle='#15181B';x.lineWidth=6;x.lineJoin='round';x.beginPath();x.moveTo(72,80);x.lineTo(92,64);x.lineTo(112,80);x.lineTo(112,98);x.lineTo(72,98);x.closePath();x.stroke();
   x.fillStyle='#F3F4F5';x.font='700 44px '+FD;x.textBaseline='middle';x.fillText('Гараж',144,78);
   x.fillStyle='#9AA1A9';x.font='500 30px '+F;x.textAlign='right';x.fillText('BMW R nineT Scrambler',1020,78);x.textAlign='left';
-  /* plate */
-  let y=1080;
-  if(b.plate){x.font='700 56px '+F;const tw=Math.max(220,x.measureText(b.plate).width+60);x.fillStyle='#F4F5F2';rrect(x,60,y-54,tw,108,14);x.fill();x.lineWidth=6;x.strokeStyle='#15181B';x.stroke();
-    x.fillStyle='#15181B';x.fillText(b.plate.toUpperCase(),90,y+2);}
+  const y=1080;
+  if(rec.plate){x.font='700 56px '+F;const tw=Math.max(220,x.measureText(rec.plate).width+60);x.fillStyle='#F4F5F2';rrect(x,60,y-54,tw,108,14);x.fill();x.lineWidth=6;x.strokeStyle='#15181B';x.stroke();
+    x.fillStyle='#15181B';x.fillText(rec.plate.toUpperCase(),90,y+2);}
   else{x.fillStyle='#F3F4F5';x.font='700 52px '+FD;x.fillText('Мой R nineT',60,y);}
   const stat=(lbl,val,X)=>{x.fillStyle='#9AA1A9';x.font='500 28px '+F;x.fillText(lbl,X,1196);x.fillStyle='#F3F4F5';x.font='700 44px '+F;x.fillText(val,X,1248);};
-  stat('Пробег',b.km!=null?nf(b.km)+' км':'-',60);
-  const lt=b.lastTo,hist=S().history.slice().sort((a,c)=>(c.date||'').localeCompare(a.date||''))[0];
-  const toD=hist&&hist.date&&(!lt.date||hist.date>lt.date)?hist.date:lt.date;
-  stat('Последнее ТО',toD?fmtDate(toD):'-',460);
+  stat('Пробег',rec.km!=null?nf(rec.km)+' км':'-',60);
+  stat('Последнее ТО',rec.to?fmtDate(rec.to):'-',460);
+  x.fillStyle='#9AA1A9';x.font='500 26px '+F;x.textAlign='right';x.fillText(fmtDate(rec.date),1020,1248);x.textAlign='left';
   x.fillStyle='#F2B705';x.fillRect(60,1300,960,6);
   return c;}
-function makeCard(){let c;try{c=drawCard();}catch(e){console.warn(e);toast('Не получилось собрать карточку');return;}
+const cardThumbs={};
+function cardThumb(rec){if(cardThumbs[rec.id])return cardThumbs[rec.id];
+  try{const u=localStorage.getItem('garage-card-'+rec.id);if(u){cardThumbs[rec.id]=u;return u;}}catch(e){}
+  if(!E.ready)return null;const big=drawCard(rec),c=document.createElement('canvas');c.width=324;c.height=405;c.getContext('2d').drawImage(big,0,0,324,405);
+  const u=c.toDataURL('image/jpeg',.8);cardThumbs[rec.id]=u;try{localStorage.setItem('garage-card-'+rec.id,u);}catch(e){}return u;}
+function makeCard(){const rec=cardRec();store.set(s=>s.cards.push(rec));openCard(rec,true);}
+function openCard(rec,isNew){let c;try{c=drawCard(rec);}catch(e){console.warn(e);toast('Не получилось собрать карточку');return;}
   const url=c.toDataURL('image/png');
   const b=openSheet(`<h2>Карточка «мой байк»</h2><img class="cardimg" id="cardImg" src="${url}" alt="Карточка мотоцикла">
-   <p class="small muted" id="cardHint" hidden>Зажми картинку и сохрани.</p>
-   <div class="row"><button class="btn primary" id="cardGo">${inTG?'Сохранить':'Поделиться'}</button></div>`,{kind:'card',size:'tall',label:'Карточка'});
+   ${isNew?'<p class="small" style="margin:0 0 10px">Сохранили в «Мои карточки» в Кабинете.</p>':''}
+   <p class="small muted" id="cardHint" hidden>Зажми картинку и сохрани в галерею.</p>
+   <div class="row"><button class="btn primary" id="cardGo">${inTG?'Сохранить в галерею':'Поделиться'}</button><button class="btn" id="cardDel">Удалить</button></div>`,
+   {kind:'card',size:'tall',label:'Карточка',onClose:()=>{if(view==='cabinet')renderCabinet();}});
+  b.querySelector('#cardDel').onclick=()=>{store.set(s=>{s.cards=s.cards.filter(x=>x.id!==rec.id);});delete cardThumbs[rec.id];try{localStorage.removeItem('garage-card-'+rec.id);}catch(e){}closeSheet();toast('Карточку удалили');};
   b.querySelector('#cardGo').onclick=async()=>{
     if(inTG){let ok=false;try{if(tgv('8.0')&&TG.downloadFile){TG.downloadFile({url,file_name:'garage-r9t.png'},r=>{if(r)track('card_shared',{via:'tg_download'});});ok=true;}}catch(e){ok=false;}
       if(!ok){b.querySelector('#cardHint').hidden=false;track('card_shared',{via:'tg_hold'});}return;}

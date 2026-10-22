@@ -1861,7 +1861,7 @@ function renderPanel(){
     const gh=document.getElementById('ghost');if(gh)gh.onclick=e=>{ghost=!ghost;e.target.setAttribute('aria-pressed',ghost);setTargets();};
   }
 }
-let ghost=true;
+let ghost=false;
 function showRatio(){const el=document.getElementById('ratio');if(!el)return;
   if(!gear){el.textContent='Нейтраль: вторичный вал стоит, колесо не крутится.';return;}
   const r=RATIOS[gear-1],tot=PRIMARY*r*FINAL,kmh=3000/tot*Math.PI*0.63*60/1000;
@@ -1955,6 +1955,7 @@ function setTargets(){altCoils();
         if(p.hid&&keep)t.op=1;
         if(p.scan&&s.f.indexOf(p.id)<0&&s.f.some(id=>P[id]&&P[id].hid&&!/^(conn|coil|cap)/.test(id)))t.op=Math.min(t.op,0.3);
         if(ghost&&!keep)t.op=0.1;
+        if(!ghost&&occl.has(p.id)&&s.f.indexOf(p.id)<0)t.op=Math.min(t.op,0.14);
         if(p.id==='loom'&&ghost&&!keep)t.op=0.05;
         if(s.xray&&(/^(head|cover|cyl)R$/.test(p.id)||p.id==='crankcase'||p.id==='throttle'))t.op=0.2;
         if(s.xray&&s.f.indexOf('fdgear')>=0&&/^(finaldrive|swingarm|wheelR|brakeR|fdfill|fddrain)$/.test(p.id))t.op=0.2;
@@ -2195,7 +2196,7 @@ function setPlate(txt){txt=String(txt||'').trim().toUpperCase().slice(0,12);
   tex.needsUpdate=true;return true;}
 /* paint: every material made from the 'paint' key (scanned tank and painted covers, headlight shell) */
 function setPaint(hex){const col=new THREE.Color(hex||0x5a5e5f);scene.traverse(o=>{if(!o.material)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(q=>{if(q.userData&&q.userData.k==='paint')q.color.copy(col);});});}
-function homeView(){if(tab==='cat'&&CATSHOW){catFocusView();return;}if(tab==='service'&&curOp){goView(curOp.steps[curStep].v);return;}
+function homeView(){if(tab==='cat'&&CATSHOW){catFocusView();return;}if(tab==='service'&&curOp){userCam=false;stepView();return;}
   goView(SYSDEF[tab]&&VIEWS['sys_'+tab]?'sys_'+tab:(tab==='engine'?'engine':'overall'));}
 /* contours work like radio buttons: «Весь мотоцикл» or exactly one contour */
 function setContour(id){activeSys=id&&CONTOURS.some(c=>c.id===id)?id:null;
@@ -2210,6 +2211,46 @@ function snapshot(w,h,view){const vo=camera.view&&camera.view.enabled?Object.ass
   renderer.setPixelRatio(1);renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1.1?Math.min(68,34*1.1/(w/h)):34;camera.updateProjectionMatrix();
   renderer.render(scene,camera);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(renderer.domElement,0,0,w,h);
   camera.position.copy(cp);controls.target.copy(ct);camera.lookAt(ct);renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);camera.aspect=asp;camera.fov=fov;if(vo)camera.setViewOffset(vo.fullWidth,vo.fullHeight,vo.offsetX,vo.offsetY,vo.width,vo.height);camera.updateProjectionMatrix();renderer.render(scene,camera);return c;}
+/* operation steps: the camera frames the parts of the step (from the step's preset side), fitted to a phone held upright and to the
+   part of the 3D that the sheet leaves free. Once the user turns the view by hand, steps keep that view until «Показать шаг». */
+let userCam=false,camDrag=false;const occl=new Set();
+/* parts between the camera and the parts of the step fade out, nothing else: the work stays visible from any angle */
+function computeOccl(cam){occl.clear();if(!curOp){return;}const ids=stepFocus().ids,b=partsBox(ids);if(b.isEmpty()){setTargets();return;}
+  const c=b.getCenter(new V3()),h=b.getSize(new V3()).multiplyScalar(0.3),focus=new Set(ids),pts=[c];
+  [[1,1,1],[1,1,-1],[1,-1,1],[1,-1,-1],[-1,1,1],[-1,1,-1],[-1,-1,1],[-1,-1,-1]].forEach(k=>pts.push(c.clone().add(new V3(h.x*k[0],h.y*k[1],h.z*k[2]))));
+  const cand=pickables.filter(m=>{let o=m;while(o){if(o.visible===false)return false;o=o.parent;}const q=P[m.userData.part];return q&&q.tgt.op>0.3;});
+  pts.forEach(pt=>{const d=pt.clone().sub(cam),L=d.length();ray.set(cam,d.normalize());ray.far=L;
+    for(const hit of ray.intersectObjects(cand,false)){const id=hit.object.userData.part;if(focus.has(id))break;occl.add(id);}});
+  ray.far=Infinity;setTargets();}
+controls.addEventListener('end',()=>{if(tab==='service'&&curOp&&userCam)computeOccl(camera.position.clone());});
+controls.addEventListener('start',()=>{camDrag=true;});
+controls.addEventListener('end',()=>{camDrag=false;});
+controls.addEventListener('change',()=>{if(camDrag&&tab==='service'&&curOp&&!fly)userCam=true;});
+function partsBox(ids){const b=new THREE.Box3();ids.forEach(id=>{const p=P[id];if(!p||p.gone)return;p.g.updateMatrixWorld(true);
+  p.g.traverse(m=>{if(!m.isMesh||!m.geometry||m.userData.dead)return;let q=m,ok=true;while(q&&q!==p.g){if(q.visible===false){ok=false;break;}q=q.parent;}if(!ok)return;
+    if(!m.geometry.boundingBox)m.geometry.computeBoundingBox();b.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld));});});return b;}
+/* a step that touches both cylinders is shown on one side only (the right one): the left is the same, the owner repeats it */
+function stepFocus(){if(!curOp)return {ids:[],side:null};const f=curOp.steps[curStep].f||[];
+  const paired=f.filter(id=>/[LR]$/.test(id)&&f.indexOf(id.slice(0,-1)+(id.endsWith('L')?'R':'L'))>=0);
+  if(!paired.length)return {ids:f,side:null};return {ids:f.filter(id=>!(paired.indexOf(id)>=0&&id.endsWith('L'))),side:'R'};}
+function stepView(){if(!curOp||userCam)return;const s=curOp.steps[curStep],V=VIEWS[s.v]||VIEWS.overall,F=stepFocus();
+  const vp=new V3(...V.p).multiplyScalar(S),vt=new V3(...V.t).multiplyScalar(S),dir0=vp.clone().sub(vt).normalize();
+  if(F.side==='R'&&dir0.z<0.55){dir0.set(dir0.x*0.45,Math.max(0.35,dir0.y*0.6),0.85).normalize();}
+  const b=partsBox(F.ids);if(b.isEmpty()){goView(s.v);return;}
+  const c=b.getCenter(new V3()),sz=b.getSize(new V3()).max(new V3(3.6,3.0,3.6))/* at least a whole cylinder with its head in frame */,h=sz.clone().multiplyScalar(0.5);
+  const R=canvas.parentElement.getBoundingClientRect(),H0=Math.max(1,R.height),visH=Math.max(120,H0-insetB);
+  const t2=Math.tan(camera.fov*Math.PI/360),tV=t2*visH/H0,tH=t2*R.width/H0;
+  const corners=[];for(const i of[-1,1])for(const j of[-1,1])for(const k of[-1,1])corners.push(new V3(h.x*i,h.y*j,h.z*k));
+  /* distance that fits the box's corners (not its sphere) for a given viewing direction */
+  const need=d=>{const f=d.clone().negate(),right=new V3().crossVectors(f,new V3(0,1,0));if(right.lengthSq()<1e-6)right.set(1,0,0);right.normalize();const up=new V3().crossVectors(right,f).normalize();
+    let m=0;corners.forEach(v=>{const x=Math.abs(v.dot(right)),y=Math.abs(v.dot(up)),z=v.dot(d);m=Math.max(m,x/tH+z,y/tV+z);});return m;};
+  /* the step's own side first, then the same side turned 35° either way: the one that needs the least distance shows the parts biggest */
+  const cands=[0,35,-35].map(a=>dir0.clone().applyAxisAngle(new V3(0,1,0),a*Math.PI/180));
+  let best=cands[0],bd=need(best)*0.92;cands.slice(1).forEach(d=>{const n=need(d);if(n<bd){bd=n;best=d;}});
+  const dist=Math.max(controls.minDistance+0.3,need(best)*1.2);
+  const p=c.clone().addScaledVector(best,dist);document.getElementById('tag3d').textContent='ВИД: '+V.n;computeOccl(p);
+  if(RM){camera.position.copy(p);controls.target.copy(c);fly=null;return;}
+  fly={p0:camera.position.clone(),t0:controls.target.clone(),p,t:c,s:performance.now(),d:900};}
 /* studio shot of a few parts alone (custom cards): other parts, floor and flows hidden for one frame, then everything back */
 function partShot(ids,w,h,o){o=o||{};const keep=new Set(ids),vis=[];
   const sv=o2=>{vis.push([o2,o2.visible]);};
@@ -2233,9 +2274,12 @@ window.R9T={partShot,
   get tab(){return tab;},get ready(){return GLB_OK;},get explode(){return explode;},get autoRot(){return autoRot;},get xray(){return xray;},get op(){return curOp;},get step(){return curStep;},
   setTab,renderPanel,setContour,CONTOURS,get contour(){return activeSys;},pickAt,select,setPlate,setPaint,homeView,setExplode,snapshot,goView,
   setAutoRot(v){autoRot=!!v;},setXray(v){xray=!!v;setTargets();},
-  opOpen(id){curOp=OPS.find(o=>o.id===id)||null;curStep=0;setTab('service');return curOp;},
-  opStep(i){if(!curOp)return;curStep=Math.max(0,Math.min(curOp.steps.length-1,i));setTargets();goView(curOp.steps[curStep].v);},
-  opClose(){curOp=null;curStep=0;},
+  opOpen(id){curOp=OPS.find(o=>o.id===id)||null;curStep=0;userCam=false;setTab('service');if(curOp)stepView();return curOp;},
+  opStep(i){if(!curOp)return;curStep=Math.max(0,Math.min(curOp.steps.length-1,i));setTargets();stepView();},
+  opClose(){curOp=null;curStep=0;userCam=false;occl.clear();},
+  opResetView(){userCam=false;stepView();},
+  get userCam(){return userCam;},get stepSide(){return stepFocus().side;},
+  get ghost(){return ghost;},setGhost(v){ghost=!!v;setTargets();},
   setPaused(v){paused=!!v;},resize,setInset(px){insetB=Math.max(0,px|0);applyInset();camera.updateProjectionMatrix();}};
 window.THREE=THREE;window.__r9t={setTab,openOp,P,goView,setStep:(i)=>{curStep=i;renderStep();setTargets();goView(curOp.steps[i].v);},goViewRaw:(V)=>{camera.position.set(...V.p).multiplyScalar(S);controls.target.set(...V.t).multiplyScalar(S);fly=null;}};
 })();

@@ -66,6 +66,7 @@ async function run(name,ctxOpts,o){
     await tap('#secTitle');ok(await pg.evaluate(()=>GARAGE.sheet==='secs'&&document.querySelectorAll('[data-s]').length===6),'tap on title lists all sections');await shot('04-sec-list');
     await tap('[data-s="bike"]');ok(await pg.evaluate(()=>R9T.tab==='bike'),'pick section from list');await shot('04-sec-bike');}
   else for(const s of ['engine','drive','brakes','elec','dash','bike']){await tap(`#secs [data-sec="${s}"]`);ok(await pg.evaluate(x=>R9T.tab===x,s),'section '+s);await shot('04-sec-'+s);}
+  ok(await pg.evaluate(()=>window.GARAGE_ODO===12000&&(document.getElementById('llab').textContent!=='ODO'||document.getElementById('lval').textContent==='12000')),'dash ODO shows own mileage');
   // contours: radio, pill with explicit off
   if(mob)await tap('#fabInfo');
   await tap('#panel [data-sys="fuel"]');ok(await pg.evaluate(()=>R9T.contour==='fuel'&&!document.getElementById('ctrPill').hidden),'contour on, pill shown');await shot('05-contour');
@@ -88,9 +89,20 @@ async function run(name,ctxOpts,o){
   ok(await pg.evaluate(()=>getComputedStyle(document.getElementById('gl')).touchAction==='none'),'touch-action none on canvas');
   // service
   await tap('#tabbar [data-view="service"]');await shot('08-service');
-  ok(await pg.locator('#scr-service .due .item').count()>=5,'what is due list');
+  ok(await pg.locator('#scr-service .due .item').count()===2,'due list: only items with data (oil, valves from last ТО)');
+  ok(await pg.locator('#scr-service #unkLog').count()===1,'items without data are asked, not guessed');
+  ok(await pg.evaluate(()=>document.getElementById('scr-service').scrollWidth<=document.getElementById('scr-service').clientWidth),'service: no horizontal overflow');
+  await tap('#setTo');await tap('[data-it="spark"]');await tap('#tSave');
+  ok(await pg.evaluate(()=>store.state.bike.lastTo.items.includes('spark')&&document.querySelectorAll('#scr-service .due .item').length===3),'last ТО with what was done recounts the plan');
   await tap('#scr-service [data-op="oilChange"]');ok(await pg.evaluate(()=>R9T.tab==='service'&&R9T.op&&R9T.op.id==='oilChange'),'operation opened on 3D');
   await shot('09-op-step1');
+  if(!mob){const g=await pg.locator('#gl').boundingBox();await pg.waitForTimeout(1500);
+    await pg.mouse.move(g.x+g.width*0.3,g.y+g.height*0.3);await pg.mouse.down();await pg.mouse.move(g.x+g.width*0.5,g.y+g.height*0.35,{steps:8});await pg.mouse.up();
+    await pg.waitForTimeout(600);const c1=await pg.evaluate(()=>R9T.userCam);
+    await tap('#sNext');await pg.waitForTimeout(1200);
+    ok(c1&&await pg.evaluate(()=>R9T.userCam&&R9T.step===1),'hand-turned view kept on «Дальше»');
+    await pg.locator('#sView').click({force:true,timeout:90000});await pg.waitForTimeout(300);ok(await pg.evaluate(()=>!R9T.userCam),'«Показать шаг» returns the step view');
+    await tap('#sPrev');}
   const n=await pg.evaluate(()=>R9T.op.steps.length);for(let i=1;i<n;i++)await tap('#sNext');
   ok(await pg.locator('#sDone').count()===1,'last step has «Сделал»');await shot('10-op-last');
   ok(await pg.locator('.disc').first().innerText().then(t=>t.includes('Совет, не замена сервиса BMW')),'disclaimer in operation');
@@ -111,9 +123,10 @@ async function run(name,ctxOpts,o){
     await pg.setInputFiles('#phAdd',{name:'bike.png',mimeType:'image/png',buffer:png});
     ok(await pg.waitForFunction(()=>store.state.album.length===1&&document.querySelectorAll('[data-ph]').length===1,null,{timeout:15000}).then(()=>true,()=>false),'photo added to album');}
   else ok(await pg.locator('#phAdd').count()===0,'TG: album says «Фото скоро»');
-  await tap('#mkCard');await pg.waitForSelector('#cardImg');ok(await pg.evaluate(()=>{const i=document.getElementById('cardImg');return i.naturalWidth===1080&&i.naturalHeight===1350;}),'card 1080x1350');await shot('16-card');
+  await tap('#mkCard');await pg.waitForSelector('#cardImg');ok(await pg.evaluate(()=>store.state.cards.length===1),'card saved to «Мои карточки»');ok(await pg.evaluate(()=>{const i=document.getElementById('cardImg');return i.naturalWidth===1080&&i.naturalHeight===1350;}),'card 1080x1350');await shot('16-card');
   if(o.tg){await tap('#cardGo');ok(await pg.evaluate(()=>!document.getElementById('cardHint').hidden),'TG: hold-to-save hint when downloadFile cannot take data URL');}
   await tap('#sheetX');
+  ok(await pg.waitForFunction(()=>document.querySelectorAll('[data-card] img').length===1,null,{timeout:60000}).then(()=>true,()=>false),'card thumbnail in cabinet');
   await tap('#proMore');await shot('17-pro');ok(await pg.locator('.cmp').innerText().then(t=>t.includes('Фотоальбом')&&t.includes('Кастом')),'Pro table has album and custom');await tap('#proWant');ok(await pg.evaluate(()=>!document.getElementById('proMsg').hidden),'Хочу Pro message');await tap('#sheetX');
   const ev=await pg.evaluate(()=>window.__garageEvents||[]);
   for(const e of ['bike_added','mileage_set','service_logged','op_opened','op_done','cat_show','pro_wanted','card_shared','custom_wanted'].concat(o.tg?['opened_in_telegram']:[]))
