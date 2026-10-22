@@ -2210,7 +2210,25 @@ function snapshot(w,h,view){const vo=camera.view&&camera.view.enabled?Object.ass
   renderer.setPixelRatio(1);renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1.1?Math.min(68,34*1.1/(w/h)):34;camera.updateProjectionMatrix();
   renderer.render(scene,camera);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(renderer.domElement,0,0,w,h);
   camera.position.copy(cp);controls.target.copy(ct);camera.lookAt(ct);renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);camera.aspect=asp;camera.fov=fov;if(vo)camera.setViewOffset(vo.fullWidth,vo.fullHeight,vo.offsetX,vo.offsetY,vo.width,vo.height);camera.updateProjectionMatrix();renderer.render(scene,camera);return c;}
-window.R9T={
+/* studio shot of a few parts alone (custom cards): other parts, floor and flows hidden for one frame, then everything back */
+function partShot(ids,w,h,o){o=o||{};const keep=new Set(ids),vis=[];
+  const sv=o2=>{vis.push([o2,o2.visible]);};
+  Object.values(P).forEach(p=>{sv(p.g);p.g.visible=keep.has(p.id)&&!p.gone;});
+  [turntable,ticks,flowGroup,window.__floorSh].forEach(x=>{if(x){sv(x);x.visible=false;}});
+  const mats=[];ids.forEach(id=>{const p=P[id];if(!p)return;p.g.traverse(m=>{if(m.material)(Array.isArray(m.material)?m.material:[m.material]).forEach(q=>{mats.push([q,q.opacity,q.emissive?q.emissive.clone():null,q.depthWrite]);q.opacity=1;q.depthWrite=true;if(q.emissive&&!(q.userData&&q.userData.baseEm))q.emissive.setRGB(0,0,0);else if(q.emissive)q.emissive.copy(q.userData.baseEm);});});});
+  const box=new THREE.Box3();ids.forEach(id=>{const p=P[id];if(!p)return;p.g.updateMatrixWorld(true);p.g.traverse(m=>{if(!m.isMesh||!m.visible||!m.geometry||m.userData.dead)return;let ok=true,q=m;while(q){if(q.visible===false){ok=false;break;}q=q.parent;}if(!ok)return;if(!m.geometry.boundingBox)m.geometry.computeBoundingBox();box.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld));});});
+  const c=box.getCenter(new V3()),rad=Math.max(0.05,box.getSize(new V3()).length()/2);
+  const bg0=scene.background,cp=camera.position.clone(),ct=controls.target.clone(),asp=camera.aspect,fov=camera.fov,vo=camera.view&&camera.view.enabled?Object.assign({},camera.view):null;
+  const sz=new THREE.Vector2();renderer.getSize(sz);const pr=renderer.getPixelRatio();
+  scene.background=new THREE.Color(o.bg||'#F3F4F5');camera.clearViewOffset();camera.aspect=w/h;camera.fov=30;camera.updateProjectionMatrix();
+  const dir=new V3(...(o.dir||[0.55,0.42,0.72])).normalize(),dist=rad/Math.sin(camera.fov*Math.PI/360)*1.05;
+  camera.position.copy(c).addScaledVector(dir,dist);camera.lookAt(c);
+  renderer.setPixelRatio(1);renderer.setSize(w,h,false);renderer.render(scene,camera);
+  const out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(renderer.domElement,0,0,w,h);
+  vis.forEach(([x,v])=>x.visible=v);mats.forEach(([q,op,em,dw])=>{q.opacity=op;q.depthWrite=dw;if(em)q.emissive.copy(em);});
+  scene.background=bg0;camera.position.copy(cp);controls.target.copy(ct);camera.lookAt(ct);camera.aspect=asp;camera.fov=fov;if(vo)camera.setViewOffset(vo.fullWidth,vo.fullHeight,vo.offsetX,vo.offsetY,vo.width,vo.height);camera.updateProjectionMatrix();
+  renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);renderer.render(scene,camera);return out;}
+window.R9T={partShot,
   P,OPS,VIEWS,SYSDEF,CAT,
   get tab(){return tab;},get ready(){return GLB_OK;},get explode(){return explode;},get autoRot(){return autoRot;},get xray(){return xray;},get op(){return curOp;},get step(){return curStep;},
   setTab,renderPanel,setContour,CONTOURS,get contour(){return activeSys;},pickAt,select,setPlate,setPaint,homeView,setExplode,snapshot,goView,

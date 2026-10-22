@@ -337,15 +337,18 @@ $('catOff').onclick=catOff;
 
 /* ================= custom ================= */
 const ICON_LOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-const SIL={
- bars:'<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 38c8 0 14 2 20 10h40c6-8 12-10 20-10"/><path d="M30 48l-6 6M70 48l6 6"/><rect x="44" y="44" width="12" height="10" rx="2"/><path d="M50 54v22"/></svg>',
- exhaust:'<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 30c14 0 20 10 22 22"/><rect x="30" y="46" width="52" height="18" rx="9"/><path d="M82 52h8M82 58h8"/><path d="M44 46v18M56 46v18" stroke-width="3"/></svg>',
- mirrors:'<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="34" r="14"/><circle cx="72" cy="34" r="14"/><path d="M34 46l8 26M66 46l-8 26M34 76h32"/></svg>'};
+/* custom cards show real parts rendered alone from our own 3D model (no brands, no foreign pictures) */
+const CUSTOM_PARTS=[['bars','Руль',['bars','resF','clutchMaster'],[0.92,0.5,0.22]],['exhaust','Выхлоп',['headers','collector','silencers'],[0.2,0.28,-0.94]],['seat','Сиденье',['seat'],[0.45,0.6,0.66]]];
+const shotCache={};
+function customShot(k,ids,dir){const bg=getComputedStyle(document.documentElement).getPropertyValue('--panel').trim()||'#F3F4F5',key=k+bg;
+  if(shotCache[key])return shotCache[key];if(!E.ready)return null;
+  try{shotCache[key]=E.partShot(ids,520,520,{bg,dir}).toDataURL('image/jpeg',.86);}catch(e){console.warn('partShot',e);return null;}return shotCache[key];}
 function renderCustom(){const el=SCREENS.custom,w=S().customWanted;
   el.innerHTML=`<div class="wrap"><h1>Кастомайзинг скоро</h1>
    <p class="lead">Оцифровываем кастомные детали для R nineT от производителей. Примеришь их на свой байк в 3D до покупки. Будет в Pro.</p>
-   <div class="cgrid">${[['bars','Руль'],['exhaust','Выхлоп'],['mirrors','Зеркала']].map(([k,n])=>`<div class="ccard"><span class="lk">${ICON_LOCK}</span>${SIL[k]}<div>${n}</div></div>`).join('')}</div>
+   <div class="cgrid">${CUSTOM_PARTS.map(([k,n])=>`<div class="ccard"><div class="cimg" data-shot="${k}"></div><div class="cname"><span>${n}</span><span class="lk" aria-label="Скоро">${ICON_LOCK}</span></div></div>`).join('')}</div>
    <button class="btn primary block" id="wantCustom" ${w?'disabled':''}>${w?'Записали, позовём первым':'Хочу кастом'}</button></div>`;
+  requestAnimationFrame(()=>CUSTOM_PARTS.forEach(([k,n,ids,dir])=>{const u=customShot(k,ids,dir),d=el.querySelector(`[data-shot="${k}"]`);if(u&&d)d.innerHTML=`<img src="${u}" alt="${n} R nineT, 3D">`;}));
   el.querySelector('#wantCustom').onclick=()=>{store.set(s=>s.customWanted=true);track('custom_wanted');haptic('ok');toast('Записали, позовём первым');renderCustom();};}
 
 /* ================= cabinet ================= */

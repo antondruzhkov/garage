@@ -382,3 +382,13 @@ mark{background:color-mix(in srgb,var(--hazard) 55%,transparent);color:inherit;b
 @media (prefers-reduced-motion: reduce){.stitle b.in-r,.stitle b.in-l{animation:none}.sdots i{transition:none}}
 .app[data-sec="dash"] .ghint{display:none!important}
 @media (min-width:900px){.stepnav{position:static;margin:0;padding:12px 0 0}}
+
+/* custom: real part renders */
+.ccard{padding:0;overflow:hidden;text-align:left}
+.cimg{aspect-ratio:1;background:var(--panel);display:grid;place-items:center}
+.cimg img{width:100%;height:100%;object-fit:cover;display:block}
+.cname{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:10px 12px;border-top:1px solid var(--line);font-size:14px;font-weight:600}
+.cname .lk{position:static;color:var(--muted);display:inline-flex}
+.cname .lk svg{width:16px;height:16px}
+@media (max-width:899px){.cgrid{grid-template-columns:1fr 1fr}.cgrid .ccard:first-child{grid-column:1/-1}.cgrid .ccard:first-child .cimg{aspect-ratio:16/10}}
+.cimg{position:relative;overflow:hidden}.cimg img{position:absolute;inset:0}
