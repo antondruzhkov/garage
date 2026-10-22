@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Гараж R nineT</title>
+<meta name="description" content="3D-сервис для владельцев BMW R nineT: обслуживание по шагам, каталог BMW, история ТО.">
+<meta name="theme-color" content="#121417">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23F2B705'/%3E%3Cpath d='M6 15l10-7 10 7v10H6z' fill='none' stroke='%2315181B' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M11 25v-6h10v6' fill='none' stroke='%2315181B' stroke-width='2.6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+<script>/* Telegram Mini App: the library is only needed inside Telegram (launch params come in the hash). Outside it the site does not wait for telegram.org */
+if(/tgWebApp/.test(location.hash)||window.TelegramWebviewProxy||/[?&]tg=1/.test(location.search))document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');</script>
+<script>/* fonts in the background: the page opens at once with system fonts if Google Fonts is slow */
+(function(){var l=document.createElement("link");l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap";document.head.appendChild(l);})();</script>
+</head>
+<body>
+<div id="app" class="app" data-view="garage">
+
+<header class="top" id="top">
+  <button class="who" id="who" aria-label="Мой байк в кабинете">
+    <span class="plate" id="hPlate">R nineT</span>
+    <span class="hmeta"><b id="hKm">пробег ?</b><em id="hTo">до ТО: укажи пробег</em></span>
+  </button>
+  <div class="opbar" id="opbar" hidden><button class="ghostbtn" id="opExit" aria-label="Выйти из операции"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="opTitle"></b></div>
+</header>
+
+<nav class="secs" id="secs" aria-label="Разделы мотоцикла">
+  <button data-sec="bike" aria-pressed="true">Мотоцикл</button>
+  <button data-sec="engine" aria-pressed="false">Двигатель</button>
+  <button data-sec="drive" aria-pressed="false">Привод</button>
+  <button data-sec="brakes" aria-pressed="false">Тормоза</button>
+  <button data-sec="elec" aria-pressed="false">Электрика</button>
+  <button data-sec="dash" aria-pressed="false">Приборка</button>
+</nav>
+
+<main class="stage" id="stage">
+  <div class="bay" id="bay">
+    <div class="loader" id="loader" role="status" aria-live="polite"><svg viewBox="40 30 330 170" aria-hidden="true"><defs><clipPath id="ldclip"><rect id="ldrect" x="40" y="0" width="0" height="230"/></clipPath></defs>
+<g class="ln"><path d="M58 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0M266 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0"/><path d="M102 150l52-44h58l20 44h-40M154 106l-22-26h-34M212 106l34-30 64 74M246 76l40-6M286 70l-6-20M300 62a10 10 0 1 0 0.1 0"/><path d="M150 84c12-22 58-26 86-12l6 10c-26 10-68 12-92 2zM96 80h58"/><path d="M186 134c14 4 40 4 52-6M118 130c18 8 50 10 64 4"/></g><g class="fl" clip-path="url(#ldclip)"><path d="M58 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0M266 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0"/><path d="M102 150l52-44h58l20 44h-40M154 106l-22-26h-34M212 106l34-30 64 74M246 76l40-6M286 70l-6-20M300 62a10 10 0 1 0 0.1 0"/><path d="M150 84c12-22 58-26 86-12l6 10c-26 10-68 12-92 2zM96 80h58"/><path d="M186 134c14 4 40 4 52-6M118 130c18 8 50 10 64 4"/></g></svg><b id="ldtxt">ЗАГРУЖАЮ МОДЕЛЬ 0%</b></div>
+    <script>(function(){var ok=false;try{var c=document.createElement('canvas');ok=!!(c.getContext('webgl2')||c.getContext('webgl'));}catch(e){}
+      if(!ok){var t=document.getElementById('ldtxt');if(t)t.textContent='БРАУЗЕР ВЫКЛЮЧИЛ 3D (WEBGL). ОБНОВИ ИЛИ ОТКРОЙ В ДРУГОМ БРАУЗЕРЕ';}})();
+    setTimeout(function(){var l=document.getElementById('loader');if(l&&!window.__r9tLoaded){var t=document.getElementById('ldtxt');if(t)t.textContent='НЕ ЗАГРУЗИЛОСЬ. ОБНОВИ СТРАНИЦУ';}},45000);</script>
+    <canvas id="gl" aria-label="3D-модель мотоцикла: один палец крутит, два пальца зум и сдвиг, тап по детали"></canvas>
+    <div class="tag3d" id="tag3d">ВИД: ОБЩИЙ</div>
+    <div class="tip" id="tip" hidden></div>
+    <div id="dash" hidden></div>
+    <button class="infobtn" id="infoBtn" hidden><span id="infoLbl">О разделе</span><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="catpill" id="catPill" hidden><span id="catLbl"></span><button id="catOff" aria-label="Убрать подсветку"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
+    <div class="fabs" id="fabs">
+      <div class="exslider" id="exSlider" hidden><input id="exRange" type="range" min="0" max="100" value="0" aria-label="Насколько разобрать"></div>
+      <button class="fab" id="fabRot" aria-pressed="true" aria-label="Вращение"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>
+      <button class="fab" id="fabXray" aria-pressed="false" aria-label="Прозрачно"><svg viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6" stroke-dasharray="2.4 2.4"/></svg></button>
+      <button class="fab" id="fabEx" aria-pressed="false" aria-label="Разобрать. Долгое нажатие: ползунок"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg></button>
+    </div>
+  </div>
+  <aside class="side" id="side"><div id="panel" aria-live="polite"></div></aside>
+</main>
+
+<section class="screen" id="scr-service" aria-label="Обслуживание" hidden></section>
+<section class="screen" id="scr-catalog" aria-label="Каталог" hidden></section>
+<section class="screen" id="scr-custom" aria-label="Кастом" hidden></section>
+<section class="screen" id="scr-cabinet" aria-label="Кабинет" hidden></section>
+
+<nav class="tabbar" id="tabbar" aria-label="Меню">
+  <button data-view="garage" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9H3z"/><path d="M8 20v-6h8v6"/></svg><span>Гараж</span></button>
+  <button data-view="service"><svg viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0 5 5L21 13l-8 8-2-2 7-7-1.5-1.5a4 4 0 0 0-5-5l2.5 2.5-2 2z"/><path d="M3 21l6-6"/></svg><span>Обслуживание</span></button>
+  <button data-view="catalog"><svg viewBox="0 0 24 24"><path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/></svg><span>Каталог</span></button>
+  <button data-view="custom"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Кастом</span></button>
+  <button data-view="cabinet"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span>Кабинет</span></button>
+</nav>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="false">
+  <div class="grab" id="grab" aria-hidden="true"></div>
+  <button class="sx" id="sheetX" aria-label="Закрыть"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+  <div class="sbody" id="sbody"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+
+<script src="dash.js"></script>
+<script src="assets/three.min.js"></script>
+<script>if(!window.THREE)document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');</script>
+<script src="assets/OrbitControls.js"></script>
+<script>if(window.THREE&&!THREE.OrbitControls)document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>');</script>
+<script src="engine.js"></script>
+<script src="store.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

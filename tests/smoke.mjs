@@ -1,0 +1,13 @@
+import {createRequire} from 'node:module';const require=createRequire('/opt/node22/lib/node_modules/');
+const {chromium,devices}=require('playwright');import {serve} from './serve.mjs';
+const srv=await serve();const base=`http://127.0.0.1:${srv.address().port}/`;
+const out=process.argv[2]||'/tmp/shots';import fs from 'node:fs';fs.mkdirSync(out,{recursive:true});
+const b=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
+const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
+const pg=await ctx.newPage();const errs=[];
+pg.on('console',m=>{if(m.type()==='error'||m.type()==='warning')errs.push(m.type()+': '+m.text());});pg.on('pageerror',e=>errs.push('PAGEERR '+e.message));
+await pg.route(/fonts\.(googleapis|gstatic)\.com|telegram\.org|mc\.yandex/,r=>r.fulfill({status:200,body:''}));
+const t0=Date.now();await pg.goto(base);await pg.waitForFunction(()=>window.__garageReady,null,{timeout:120000});
+console.log('ready in',Date.now()-t0,'ms');await pg.waitForTimeout(1500);
+await pg.screenshot({path:out+'/m-first.png'});
+console.log(errs.join('\n'));await b.close();srv.close();

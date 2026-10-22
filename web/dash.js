@@ -247,6 +247,6 @@ function music(on){if(on){if(!AC)initAudio();AC.resume();if(!sched){nextT=AC.cur
   else if(AC){master.gain.cancelScheduledValues(AC.currentTime);master.gain.setTargetAtTime(0,AC.currentTime,.25);
     setTimeout(()=>{if(!playing&&sched){clearInterval(sched);sched=null;AC.suspend();}},1200);}}
 const mb=document.getElementById('music');
-mb.onclick=()=>{playing=!playing;mb.setAttribute('aria-pressed',playing);mb.querySelector('span').textContent=playing?'Музыка: вкл':'Музыка';music(playing);};
+if(mb)mb.onclick=()=>{playing=!playing;mb.setAttribute('aria-pressed',playing);mb.querySelector('span').textContent=playing?'Музыка: вкл':'Музыка';music(playing);};
 })();
 

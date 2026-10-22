@@ -1,6 +1,8 @@
 (function(){
 "use strict";
 const V3=THREE.Vector3, S=0.01;
+/* hooks the app shell (app.js) sets: tap, openOp, openDiag, ready, autoRot */
+const H=window.R9T_HOOKS=window.R9T_HOOKS||{};
 const RM=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- renderer ---------- */
@@ -57,7 +59,7 @@ const M={
   blue:[0x2b4f8a,.45,.2], oil:[0xd8a21f,.2,0], lens:[0xf4f7fa,.08,0], gold:[0x8f7a45,.35,.8], disc:[0x8a8f94,.28,1], copper:[0xb06a3a,.35,1], cast:[0x232527,.5,.55], heat:[0x9c7a5c,.3,1], ti:[0xb3b0aa,.38,1], headcov:[0xa3a7ab,.42,.85], rimblk:[0x161719,.35,.6]
 };
 const ENVI={rubber:.18,case:.45,fin:.55,frame:.45,black:.4,satin:.6,seat:.35,rimblk:.6,coil:.4};
-function mat(k,dbl){const a=M[k];const m=new THREE.MeshStandardMaterial({color:a[0],roughness:a[1],metalness:a[2],envMapIntensity:ENVI[k]==null?1:ENVI[k]});if(dbl)m.side=THREE.DoubleSide;return m;}
+function mat(k,dbl){const a=M[k];const m=new THREE.MeshStandardMaterial({color:a[0],roughness:a[1],metalness:a[2],envMapIntensity:ENVI[k]==null?1:ENVI[k]});if(dbl)m.side=THREE.DoubleSide;m.userData.k=k;return m;}
 
 const PHOTO={};
 const PHT={};function phTex(k){if(!PHT[k]){const t=new THREE.TextureLoader().load(PHOTO[k]);t.encoding=THREE.sRGBEncoding;t.anisotropy=8;PHT[k]=t;}return PHT[k];}
@@ -1766,7 +1768,7 @@ const SYSTXT={
  drive:{h:'Привод: от сцепления до колеса',lead:'Сухое однодисковое сцепление сзади на коленвале, шестиступенчатая коробка, карданный вал внутри маятника Paralever, гипоидная главная передача в ступице заднего колеса. Включи передачу и посмотри, как вращение идёт до колеса. Ползунок внизу разбирает узел на детали.',ops:['fd','clutch'],src:'Схемы BMW 21_0195, 23_*, 33_1226, 33_1622, 33_1626, 33_1627, 33_1651, 33_1873.'},
  brakes:{h:'Тормоза и ABS',lead:'Спереди два плавающих диска 320 мм с четырёхпоршневыми суппортами, сзади один диск 265 мм с двухпоршневым плавающим суппортом. Блок ABS сравнивает скорость колёс по датчикам и не даёт колесу заблокироваться. Бачки: передний на правом рычаге руля, задний у правой подножки.',ops:['brakes'],src:'Схемы BMW 34_* и инструкция владельца R nineT Scrambler.'},
  elec:{h:'Электрика',lead:'Генератор 720 Вт спереди на двигателе крутится ремнём от коленвала, через регулятор заряжает аккумулятор AGM 12 В 14 А·ч под сиденьем. Оттуда питание идёт через главное реле на блок управления двигателем, модуль «Свет», приборку, катушки, форсунки и датчики. Цвета жгутов на модели условные.',ops:['spark','coilSwap','deadCyl'],src:'Схемы BMW 61_3273, 61_3928, 61_5758, 61_5331, 61_5196, 12_2129, 13_1979.'}};
-function hud3D(){
+function hud3D(){if(!hud)return;
   hud.innerHTML=`<label class="slider" for="ex">Разобрать <input id="ex" type="range" min="0" max="100" value="${Math.round(explode*100)}"></label>
     <button class="chipbtn" id="rot" aria-pressed="${autoRot}">Вращение</button>
     <button class="chipbtn" id="xr" aria-pressed="${xray}">Прозрачно</button>
@@ -1792,7 +1794,7 @@ function bindPartList(){panel.querySelectorAll('[data-pk]').forEach(b=>b.onclick
   panel.querySelectorAll('[data-pk]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.pk===picked));renderPick();setTargets();});}
 function renderPanel(){
   if(tab==='dash'){if(window.DASH)DASH.panel(panel);return;}
-  if(tab==='cat'){CAT.render(panel);hud3D();return;}
+  if(tab==='cat'){panel.innerHTML='';return;}
   if(tab==='bike'){
     panel.innerHTML=`<h2>Твой R nineT Scrambler</h2>
     <p class="lead">Кузов, рама, двигатель снаружи, вилка, тормоза и руль взяты из подробной 3D-модели R nineT, разбитой на детали. Твоё поверх неё: спицованные колёса и два глушителя слева, как на Scrambler. Тяни, чтобы покрутить. Ползунок внизу разносит мотоцикл на узлы, клик по детали покажет, что это и какие работы с ней связаны.</p>
@@ -1838,7 +1840,7 @@ function renderPanel(){
     panel.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>openOp(b.dataset.op));
     bindPartList();renderPick();hud3D();
   }
-  else if(tab==='service'){
+  else if(tab==='service'){panel.innerHTML='';return;
     if(!curOp){
       panel.innerHTML=`<h2>Что делаем?</h2>
       <p class="lead">Напиши, что нужно сделать или что не так с мотоциклом. Подберу работу и проведу по шагам на модели.</p>
@@ -1877,7 +1879,7 @@ function renderPick(){const b=document.getElementById('pickbox');if(!b)return;
   b.querySelectorAll('[data-op]').forEach(x=>x.onclick=()=>openOp(x.dataset.op));
   const cats=CAT.partFor(picked);if(cats.length){const d=document.createElement('div');d.innerHTML=`<p class="lead" style="margin:10px 0 6px">Детали BMW по каталогу:</p><ul class="ops">${cats.map(c=>`<li><button class="op" data-cat="${c.id}"><b>${esc(c.t)}</b><span class="sub">${c.id} · ${c.r.length} поз.</span></button></li>`).join('')}</ul>`;b.firstChild.appendChild(d);
     d.querySelectorAll('[data-cat]').forEach(x=>x.onclick=()=>CAT.openDiag(x.dataset.cat));}}
-function openOp(id){curOp=OPS.find(o=>o.id===id);curStep=0;setTab('service');}
+function openOp(id){if(H.openOp)return H.openOp(id);curOp=OPS.find(o=>o.id===id);curStep=0;setTab('service');}
 function renderStep(){const o=curOp,s=o.steps[curStep];
   panel.innerHTML=`<div class="step-head"><button class="back" id="back">← Все работы</button></div>
   <h2>${o.t}</h2><p class="lead">${o.when} · ${o.time} · сложность ${o.diff} из 5</p>
@@ -1922,7 +1924,7 @@ function catFocusView(){if(!CATSHOW)return;const b=new THREE.Box3();
   document.getElementById('tag3d').textContent='ВИД: '+CATSHOW.label;
   if(RM){camera.position.copy(p);controls.target.copy(c);fly=null;return;}
   fly={p0:camera.position.clone(),t0:controls.target.clone(),p,t:c,s:performance.now(),d:900};}
-function setCatShow(v){CATSHOW=v;autoRot=false;const rb=document.getElementById('rot');if(rb)rb.setAttribute('aria-pressed','false');
+function setCatShow(v){CATSHOW=v;autoRot=false;if(H.autoRot)H.autoRot(false);
   picked=null;setTargets();if(v)catFocusView();else goView('overall');}
 function setTargets(){altCoils();
   Object.values(P).forEach(p=>{const t=p.tgt;t.hl=0;t.off=0;t.op=1;
@@ -1972,24 +1974,23 @@ function setTargets(){altCoils();
 }
 
 const TABS=['bike','engine','drive','brakes','elec','dash','service','cat'];
-function setTab(t){if(t!=='cat')CATSHOW=null;tab=t;if(t!=='bike'&&activeSys){activeSys=null;setFlow(null);}TABS.forEach(x=>document.getElementById('t-'+x).setAttribute('aria-selected',x===t));
+function setTab(t){if(t!=='cat')CATSHOW=null;tab=t;if(t!=='bike'&&activeSys){activeSys=null;setFlow(null);}TABS.forEach(x=>{const el=document.getElementById('t-'+x);if(el)el.setAttribute('aria-selected',x===t);});
   if(t==='dash')picked=null;else if(picked&&SYSDEF[t]&&!SYSDEF[t].set.has(picked))picked=null;
   const dEl=document.getElementById('dash');dEl.hidden=t!=='dash';
-  if(t==='dash'){renderPanel();try{localStorage.setItem('r9t-tab',t);}catch(e){}if(window.DASH)DASH.onShow();return;}
+  if(t==='dash'){renderPanel();if(window.DASH)DASH.onShow();return;}
   renderPanel();setTargets();
   if(t==='bike'||t==='cat')goView('overall');else if(SYSDEF[t])goView(VIEWS['sys_'+t]?'sys_'+t:(t==='engine'?'engine':'overall'));else goView(curOp?curOp.steps[curStep].v:'overall');
-  try{localStorage.setItem('r9t-tab',t);}catch(e){}}
-TABS.forEach(x=>document.getElementById('t-'+x).onclick=()=>{if(x==='service'&&tab!=='service')curOp=curOp;setTab(x);});
+  }
 
 /* ---------- picking ---------- */
 const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();let downXY=null;
-canvas.addEventListener('pointerdown',e=>{downXY=[e.clientX,e.clientY];autoRot=false;const rb=document.getElementById('rot');if(rb)rb.setAttribute('aria-pressed','false');});
-canvas.addEventListener('pointerup',e=>{if(!downXY||Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>5)return;
-  const r=canvas.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+canvas.addEventListener('pointerdown',e=>{downXY=[e.clientX,e.clientY];autoRot=false;if(H.autoRot)H.autoRot(false);});
+function pickAt(x,y){const r=canvas.getBoundingClientRect();mouse.set((x-r.left)/r.width*2-1,-(y-r.top)/r.height*2+1);
   ray.setFromCamera(mouse,camera);
   const hits=ray.intersectObjects(pickables.filter(m=>{let o=m;while(o){if(o.visible===false)return false;o=o.parent;}return P[m.userData.part]&&P[m.userData.part].cur.op>0.5;}),false);
-  if(!(tab==='bike'||SYSDEF[tab]))return;
-  picked=hits.length?hits[0].object.userData.part:null;renderPick();panel.querySelectorAll('[data-pk]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.pk===picked));setTargets();});
+  return hits.length?hits[0].object.userData.part:null;}
+canvas.addEventListener('pointerup',e=>{if(!downXY||Math.hypot(e.clientX-downXY[0],e.clientY-downXY[1])>8)return;if(H.tap)H.tap(e.clientX,e.clientY,e);});
+function select(id){picked=id||null;renderPick();panel.querySelectorAll('[data-pk]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.pk===picked));setTargets();}
 
 /* ---------- hover: highlight + what it is ---------- */
 const tipEl=document.getElementById('tip');let lastHover=0;
@@ -2004,7 +2005,9 @@ canvas.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||e.buttons)
 canvas.addEventListener('pointerleave',()=>{tipEl.hidden=true;if(hoverId){hoverId=null;setTargets();}});
 
 /* ---------- resize + loop ---------- */
-function resize(){const r=canvas.parentElement.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/Math.max(1,r.height);camera.fov=camera.aspect<1.1?Math.min(68,34*1.1/camera.aspect):34;camera.updateProjectionMatrix();}
+let insetB=0;/* px of the canvas covered by a bottom sheet: the picture shifts up so the bike stays in the free part */
+function applyInset(){const r=canvas.parentElement.getBoundingClientRect();if(insetB>0)camera.setViewOffset(r.width,r.height,0,insetB/2,r.width,r.height);else camera.clearViewOffset();}
+function resize(){const r=canvas.parentElement.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/Math.max(1,r.height);camera.fov=camera.aspect<1.1?Math.min(68,34*1.1/camera.aspect):34;applyInset();camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(canvas.parentElement);
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 let last=performance.now();
@@ -2039,8 +2042,7 @@ function loop(now){FADEDT=Math.min(.5,(now-last)/1000);const dt=Math.min(.05,(no
 applyTheme();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-let startTab='bike';try{const s=localStorage.getItem('r9t-tab');if(TABS.indexOf(s)>=0)startTab=s;}catch(e){}
-const hash=(location.hash||'').slice(1);if(TABS.indexOf(hash)>=0)startTab=hash;
+let startTab='bike';
 /* start after the whole script has run: the catalog module (CAT) is defined further down, and the remembered tab may be the catalog */
 queueMicrotask(()=>{resize();setTab(startTab);if(fly){camera.position.copy(fly.p);controls.target.copy(fly.t);fly=null;}
 Object.values(P).forEach(p=>{p.cur.op=p.tgt.op;p.cur.off=p.tgt.off;});});
@@ -2069,14 +2071,14 @@ function finishScanOffsets(){Object.values(P).forEach(p=>{if(!p.scanU)return;con
     m.geometry.setAttribute('aOff',new THREE.BufferAttribute(off,3));delete m.userData.compC;});});}
 /* loading screen: an outline bike fills up from the bottom while the detailed scan downloads; the simple placeholder bike is never shown */
 function loaderProgress(f){const r=document.getElementById('ldrect'),t=document.getElementById('ldtxt');if(!r)return;r.setAttribute('width',330*f);t.textContent='ЗАГРУЖАЮ МОДЕЛЬ '+Math.round(f*100)+'%';}
-function loaderDone(){window.__r9tLoaded=true;const l=document.getElementById('loader');if(l){l.classList.add('done');setTimeout(()=>l.remove(),600);}}
+function loaderDone(){window.__r9tLoaded=true;if(H.ready)setTimeout(()=>H.ready(GLB_OK),0);const l=document.getElementById('loader');if(l){l.classList.add('done');setTimeout(()=>l.remove(),600);}}
 async function loadBody(){
-  let buf;try{const r=await fetch('bike.wasm');if(!r.ok)throw 0;
+  let buf;try{const r=await fetch('assets/bike.wasm');if(!r.ok)throw 0;
     const total=+r.headers.get('content-length')||5637773;
     try{const rd=r.body.getReader(),parts=[];let got=0;
       for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;loaderProgress(Math.min(.95,got/total*.95));}
       const all=new Uint8Array(got);let o=0;parts.forEach(q=>{all.set(q,o);o+=q.length;});buf=all.buffer;}
-    catch(e){buf=await (await fetch('bike.wasm')).arrayBuffer();}
+    catch(e){buf=await (await fetch('assets/bike.wasm')).arrayBuffer();}
     loaderProgress(.97);const u=new Uint8Array(buf,0,2);
     if(u[0]===0x1f&&u[1]===0x8b){if(typeof DecompressionStream==='undefined')throw 0;buf=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}}catch(e){console.warn('body',e);loaderDone();return;}
   const dv=new DataView(buf),hl=dv.getUint32(0,true),H=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl))),base=4+hl;
@@ -2157,7 +2159,7 @@ function linkOf(d){const L=LINK[d.id];if(!L){const k=d.id+' '+d.t;for(const [re,
   const o={};L.split(' ').forEach(x=>{const [id,tag]=x.split(':');if(!P[id]||P[id].gone)return;if(tag){(o[id]=o[id]||[]).push(tag);}else o[id]=null;});
   return Object.keys(o).length?o:null;}
 const partOf=d=>{const o=linkOf(d);return o?Object.keys(o)[0]:null;};
-async function load(){if(DATA)return DATA;try{DATA=await (await fetch('catalog.json')).json();}catch(e){DATA=[];}return DATA;}
+async function load(){if(DATA)return DATA;try{DATA=await (await fetch('assets/catalog.json')).json();}catch(e){DATA=[];}return DATA;}
 function rowsHTML(d){return `<table class="cat"><thead><tr><th>№</th><th>Номер BMW</th><th>Деталь</th><th>Шт</th></tr></thead><tbody>${d.r.map(r=>`<tr><td>${esc(r[0])}</td><td class="pn">${esc(r[1])}</td><td>${esc(r[2])}${r[4]?`<small>${esc(r[4])}</small>`:''}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table>${d.n&&d.n.length?`<p class="src">${d.n.map(esc).join('<br>')}</p>`:''}`;}
 function list(){const ql=q.trim().toLowerCase().replace(/\s+/g,'');
   const hits=DATA.filter(d=>!ql||(d.id+d.t).toLowerCase().replace(/\s+/g,'').includes(ql)||d.r.some(r=>(r[1]+r[2]).toLowerCase().replace(/\s+/g,'').includes(ql)));
@@ -2173,7 +2175,44 @@ function bind(el){el.querySelectorAll('.catd').forEach(b=>b.onclick=()=>{open=op
     el.querySelector('#catl').innerHTML=list();bind(el);});
   el.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>{const d=DATA.find(x=>x.id===b.dataset.show);show(CATSHOW&&CATSHOW.id===d.id?null:d);
     el.querySelector('#catl').innerHTML=list();bind(el);});}
-return {render,openDiag:(id)=>{open=id;q='';setTab('cat');},partFor:(id)=>DATA?DATA.filter(d=>{const o=linkOf(d);return o&&id in o;}):[]};})();
+return {render,load,linkOf,show,openDiag:(id)=>{if(H.openDiag)return H.openDiag(id);open=id;q='';setTab('cat');},partFor:(id)=>DATA?DATA.filter(d=>{const o=linkOf(d);return o&&id in o;}):[]};})();
 
+/* ===== API for the app shell (app.js): everything the new interface needs, the 3D stays as it was ===== */
+/* number plate: canvas texture on the blank plate, rear face */
+let plateMesh=null;
+function setPlate(txt){txt=String(txt||'').trim().toUpperCase().slice(0,12);
+  if(!plateMesh){const p=P.tail;let blank=null;p.g.traverse(o=>{if(o.isMesh&&o.geometry&&o.geometry.type==='ExtrudeGeometry'&&o.userData.scan)blank=o;});if(!blank)return false;
+    const c=document.createElement('canvas');c.width=512;c.height=405;const tex=new THREE.CanvasTexture(c);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=8;
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(214,168),new THREE.MeshStandardMaterial({map:tex,roughness:.5,metalness:0,transparent:true}));
+    m.userData.own=true;m.position.z=-2.4;m.rotation.y=Math.PI;blank.add(m);plateMesh={m,c,tex};}
+  const {m,c,tex}=plateMesh;const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);m.visible=!!txt;if(!txt)return true;
+  x.fillStyle='#F4F5F2';x.beginPath();x.roundRect?x.roundRect(4,4,504,397,22):x.rect(4,4,504,397);x.fill();x.lineWidth=10;x.strokeStyle='#15181B';x.stroke();
+  const parts=txt.split(/\s+/);let l1=txt,l2='';if(txt.length>5&&parts.length>1){l2=parts.pop();l1=parts.join(' ');}
+  x.fillStyle='#15181B';x.textAlign='center';x.textBaseline='middle';
+  const fit=(t,max,w)=>{let f=max;x.font='700 '+f+'px "Golos Text",Arial,sans-serif';while(x.measureText(t).width>w&&f>30){f-=6;x.font='700 '+f+'px "Golos Text",Arial,sans-serif';}};
+  if(l2){fit(l1,150,460);x.fillText(l1,256,128);fit(l2,150,460);x.fillText(l2,256,290);}else{fit(l1,190,460);x.fillText(l1,256,206);}
+  tex.needsUpdate=true;return true;}
+/* paint: every material made from the 'paint' key (scanned tank and painted covers, headlight shell) */
+function setPaint(hex){const col=new THREE.Color(hex||0x5a5e5f);scene.traverse(o=>{if(!o.material)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(q=>{if(q.userData&&q.userData.k==='paint')q.color.copy(col);});});}
+function homeView(){if(tab==='cat'&&CATSHOW){catFocusView();return;}if(tab==='service'&&curOp){goView(curOp.steps[curStep].v);return;}
+  goView(SYSDEF[tab]&&VIEWS['sys_'+tab]?'sys_'+tab:(tab==='engine'?'engine':'overall'));}
+function setExplode(v){const o=explode;explode=Math.max(0,Math.min(1,v));dolly((1+0.9*explode)/(1+0.9*o));
+  if(explode>0&&activeSys){activeSys=null;setFlow(null);panel.querySelectorAll('[data-sys]').forEach(x=>x.setAttribute('aria-pressed','false'));}setTargets();}
+/* still frame of the current view at any size (for the share card) */
+function snapshot(w,h,view){const vo=camera.view&&camera.view.enabled?Object.assign({},camera.view):null;camera.clearViewOffset();const sz=new THREE.Vector2();renderer.getSize(sz);const pr=renderer.getPixelRatio(),asp=camera.aspect,fov=camera.fov;
+  const cp=camera.position.clone(),ct=controls.target.clone();
+  if(view){const V=VIEWS[view];camera.position.set(...V.p).multiplyScalar(S);controls.target.set(...V.t).multiplyScalar(S);camera.lookAt(controls.target);}
+  renderer.setPixelRatio(1);renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1.1?Math.min(68,34*1.1/(w/h)):34;camera.updateProjectionMatrix();
+  renderer.render(scene,camera);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(renderer.domElement,0,0,w,h);
+  camera.position.copy(cp);controls.target.copy(ct);camera.lookAt(ct);renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);camera.aspect=asp;camera.fov=fov;if(vo)camera.setViewOffset(vo.fullWidth,vo.fullHeight,vo.offsetX,vo.offsetY,vo.width,vo.height);camera.updateProjectionMatrix();renderer.render(scene,camera);return c;}
+window.R9T={
+  P,OPS,VIEWS,SYSDEF,CAT,
+  get tab(){return tab;},get ready(){return GLB_OK;},get explode(){return explode;},get autoRot(){return autoRot;},get xray(){return xray;},get op(){return curOp;},get step(){return curStep;},
+  setTab,renderPanel,pickAt,select,setPlate,setPaint,homeView,setExplode,snapshot,goView,
+  setAutoRot(v){autoRot=!!v;},setXray(v){xray=!!v;setTargets();},
+  opOpen(id){curOp=OPS.find(o=>o.id===id)||null;curStep=0;setTab('service');return curOp;},
+  opStep(i){if(!curOp)return;curStep=Math.max(0,Math.min(curOp.steps.length-1,i));setTargets();goView(curOp.steps[curStep].v);},
+  opClose(){curOp=null;curStep=0;},
+  resize,setInset(px){insetB=Math.max(0,px|0);applyInset();camera.updateProjectionMatrix();}};
 window.THREE=THREE;window.__r9t={setTab,openOp,P,goView,setStep:(i)=>{curStep=i;renderStep();setTargets();goView(curOp.steps[i].v);},goViewRaw:(V)=>{camera.position.set(...V.p).multiplyScalar(S);controls.target.set(...V.t).multiplyScalar(S);fly=null;}};
 })();
