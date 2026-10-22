@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#121417">
 <meta name="format-detection" content="telephone=no">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23F2B705'/%3E%3Cpath d='M6 15l10-7 10 7v10H6z' fill='none' stroke='%2315181B' stroke-width='2.6' stroke-linejoin='round'/%3E%3Cpath d='M11 25v-6h10v6' fill='none' stroke='%2315181B' stroke-width='2.6'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/silhouette.png" as="image">
 <link rel="stylesheet" href="style.css">
 <script src="config.js"></script>
 <script>/* Telegram Mini App: the library is only needed inside Telegram (launch params come in the hash). Outside it the site does not wait for telegram.org */
@@ -42,11 +43,10 @@ if(/tgWebApp/.test(location.hash)||window.TelegramWebviewProxy||/[?&]tg=1/.test(
 
 <main class="stage" id="stage">
   <div class="bay" id="bay">
-    <div class="loader" id="loader" role="status" aria-live="polite"><svg viewBox="40 30 330 170" aria-hidden="true"><defs><clipPath id="ldclip"><rect id="ldrect" x="40" y="0" width="0" height="230"/></clipPath></defs>
-<g class="ln"><path d="M58 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0M266 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0"/><path d="M102 150l52-44h58l20 44h-40M154 106l-22-26h-34M212 106l34-30 64 74M246 76l40-6M286 70l-6-20M300 62a10 10 0 1 0 0.1 0"/><path d="M150 84c12-22 58-26 86-12l6 10c-26 10-68 12-92 2zM96 80h58"/><path d="M186 134c14 4 40 4 52-6M118 130c18 8 50 10 64 4"/></g><g class="fl" clip-path="url(#ldclip)"><path d="M58 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0M266 150a44 44 0 1 0 88 0a44 44 0 1 0-88 0"/><path d="M102 150l52-44h58l20 44h-40M154 106l-22-26h-34M212 106l34-30 64 74M246 76l40-6M286 70l-6-20M300 62a10 10 0 1 0 0.1 0"/><path d="M150 84c12-22 58-26 86-12l6 10c-26 10-68 12-92 2zM96 80h58"/><path d="M186 134c14 4 40 4 52-6M118 130c18 8 50 10 64 4"/></g></svg><b id="ldtxt">ЗАГРУЖАЮ МОДЕЛЬ 0%</b></div>
+    <div class="loader" id="loader" role="status" aria-live="polite"><div class="ldsil" aria-hidden="true"><i class="ldbase"></i><i class="ldfill"></i></div><b id="ldtxt">ЗАГРУЖАЮ МОДЕЛЬ 0%</b><span class="ldsub" id="ldsub"></span><button class="btn primary" id="ldRetry" hidden>Повторить</button></div>
     <script>(function(){var ok=false;try{var c=document.createElement('canvas');ok=!!(c.getContext('webgl2')||c.getContext('webgl'));}catch(e){}
       if(!ok){var t=document.getElementById('ldtxt');if(t)t.textContent='БРАУЗЕР ВЫКЛЮЧИЛ 3D (WEBGL). ОБНОВИ ИЛИ ОТКРОЙ В ДРУГОМ БРАУЗЕРЕ';}})();
-    setTimeout(function(){var l=document.getElementById('loader');if(l&&!window.__r9tLoaded){var t=document.getElementById('ldtxt');if(t)t.textContent='НЕ ЗАГРУЗИЛОСЬ. ОБНОВИ СТРАНИЦУ';}},45000);</script>
+    setTimeout(function(){if(!window.THREE){var t=document.getElementById('ldtxt');if(t)t.textContent='НЕ ЗАГРУЗИЛОСЬ. ОБНОВИ СТРАНИЦУ';}},45000);</script>
     <canvas id="gl" aria-label="3D-модель мотоцикла: один палец крутит, два пальца зум и сдвиг, тап по детали"></canvas>
     <div class="tag3d" id="tag3d">ВИД: ОБЩИЙ</div>
     <div class="tip" id="tip" hidden></div>

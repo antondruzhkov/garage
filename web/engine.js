@@ -2072,8 +2072,18 @@ function finishScanOffsets(){Object.values(P).forEach(p=>{if(!p.scanU)return;con
   ms.forEach(m=>{const cc=m.userData.compC,off=new Float32Array(cc.length);for(let i=0;i<cc.length;i+=3){let x=cc[i]-c.x,y=cc[i+1]-c.y,z=cc[i+2]-c.z;const L=Math.hypot(x,y,z);if(L>260){x*=260/L;y*=260/L;z*=260/L;}off[i]=x;off[i+1]=y;off[i+2]=z;}
     m.geometry.setAttribute('aOff',new THREE.BufferAttribute(off,3));delete m.userData.compC;});});}
 /* loading screen: an outline bike fills up from the bottom while the detailed scan downloads; the simple placeholder bike is never shown */
-function loaderProgress(f){const r=document.getElementById('ldrect'),t=document.getElementById('ldtxt');if(!r)return;r.setAttribute('width',330*f);t.textContent='ЗАГРУЖАЮ МОДЕЛЬ '+Math.round(f*100)+'%';}
-function loaderDone(){window.__r9tLoaded=true;if(H.ready)setTimeout(()=>H.ready(GLB_OK),0);const l=document.getElementById('loader');if(l){l.classList.add('done');setTimeout(()=>l.remove(),600);}}
+function loaderProgress(f){const r=document.getElementById('ldrect'),t=document.getElementById('ldtxt'),l=document.getElementById('loader');if(l)l.style.setProperty('--p',f);if(r)r.setAttribute('width',330*f);if(!t)return;t.textContent='ЗАГРУЖАЮ МОДЕЛЬ '+Math.round(f*100)+'%';}
+/* the loader never gives way to the simple placeholder bike: it waits for the real model, says when the network is slow,
+   and offers «Повторить» if the download broke */
+let bodyLoading=false,slowT=null;
+function loaderSub(t){const e=document.getElementById('ldsub');if(e)e.textContent=t||'';}
+function loaderFail(e){console.warn('body',e);bodyLoading=false;clearTimeout(slowT);const t=document.getElementById('ldtxt'),b=document.getElementById('ldRetry');
+  if(t)t.textContent='НЕ ЗАГРУЗИЛОСЬ';loaderSub('Проверь интернет и нажми «Повторить»');
+  if(b){b.hidden=false;b.onclick=()=>{b.hidden=true;loaderSub('');loaderProgress(0);startBody();};}}
+function startBody(){if(bodyLoading||GLB_OK)return;bodyLoading=true;clearTimeout(slowT);
+  slowT=setTimeout(()=>{if(!GLB_OK)loaderSub('Медленный интернет, модель большая (5,6 МБ). Ещё грузится');},20000);
+  loadBody().then(()=>{bodyLoading=false;if(!GLB_OK)loaderFail('no body');}).catch(loaderFail);}
+function loaderDone(){clearTimeout(slowT);window.__r9tLoaded=true;if(H.ready)setTimeout(()=>H.ready(GLB_OK),0);const l=document.getElementById('loader');if(l){l.classList.add('done');setTimeout(()=>l.remove(),600);}}
 async function loadBody(){
   let buf;try{const r=await fetch('assets/bike.wasm');if(!r.ok)throw 0;
     const total=+r.headers.get('content-length')||5637773;
@@ -2082,7 +2092,7 @@ async function loadBody(){
       const all=new Uint8Array(got);let o=0;parts.forEach(q=>{all.set(q,o);o+=q.length;});buf=all.buffer;}
     catch(e){buf=await (await fetch('assets/bike.wasm')).arrayBuffer();}
     loaderProgress(.97);const u=new Uint8Array(buf,0,2);
-    if(u[0]===0x1f&&u[1]===0x8b){if(typeof DecompressionStream==='undefined')throw 0;buf=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}}catch(e){console.warn('body',e);loaderDone();return;}
+    if(u[0]===0x1f&&u[1]===0x8b){if(typeof DecompressionStream==='undefined')throw new Error('no DecompressionStream');buf=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}}catch(e){loaderFail(e);return;}
   const dv=new DataView(buf),hl=dv.getUint32(0,true),H=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl))),base=4+hl;
   const got=new Set(H.map(c=>c.l));got.add('clutchMaster');
   [['capR','справа',1],['capL','слева',-1]].forEach(([id,nm,s])=>{if(P[id])return;part(id,{name:'Накладка катушки, '+nm,desc:'Чёрная пластиковая накладка на крышке клапанов. Под ней верхушка катушки с разъёмом, а провод от разъёма идёт вниз по каналу под этой же накладкой и уходит к жгуту под цилиндром. Снаружи провода не видно.',sys:'Зажигание',layer:'drive',ex:[0,90,s*260]});P[id].home=new V3();});
@@ -2133,8 +2143,7 @@ async function loadBody(){
   const KEEP=new Set(['wheelF','wheelR','capR','capL']);
   Object.values(P).forEach(p=>{if(got.has(p.id)||KEEP.has(p.id))return;if(p.layer==='bike'||p.layer==='drive'){p.hid=true;if(p.layer==='bike'){p.wasBike=true;p.layer='internal';}}});
   finishScanOffsets();GLB_OK=true;loaderProgress(1);setTimeout(loaderDone,250);computeSys();setTargets();if(SYSDEF[tab])goView('sys_'+tab);if(window.__onBody)window.__onBody();}
-loadBody().catch(e=>{console.warn('body',e);loaderDone();});
-setTimeout(()=>{if(!GLB_OK)loaderDone();},60000);   /* never leave the loader up for good */
+startBody();
 requestAnimationFrame(loop);
 /* ===== Каталог BMW: все разделы K23 с номерами деталей, связаны с 3D ===== */
 const CAT=(function(){
@@ -2205,11 +2214,21 @@ function setContour(id){activeSys=id&&CONTOURS.some(c=>c.id===id)?id:null;
 function setExplode(v){const o=explode;explode=Math.max(0,Math.min(1,v));dolly((1+0.9*explode)/(1+0.9*o));
   if(explode>0&&activeSys){setContour(null);return;}setTargets();}
 /* still frame of the current view at any size (for the share card) */
+/* draw the scene into an offscreen render target and read the pixels back: copying the WebGL canvas with drawImage gives a black
+   picture in WebKit (Telegram on iPhone, Safari) unless the drawing buffer is preserved. 1.5x size, scaled down for smooth edges */
+function renderToCanvas(w,h){const k=1.5,W=Math.round(w*k),Hh=Math.round(h*k);
+  const rt=new THREE.WebGLRenderTarget(W,Hh,{depthBuffer:true});rt.texture.encoding=THREE.sRGBEncoding;
+  const prev=renderer.getRenderTarget();renderer.setRenderTarget(rt);renderer.clear();renderer.render(scene,camera);
+  const px=new Uint8Array(W*Hh*4);renderer.readRenderTargetPixels(rt,0,0,W,Hh,px);renderer.setRenderTarget(prev);rt.dispose();
+  const big=document.createElement('canvas');big.width=W;big.height=Hh;const bx=big.getContext('2d'),img=bx.createImageData(W,Hh),row=W*4;
+  for(let y=0;y<Hh;y++)img.data.set(px.subarray((Hh-1-y)*row,(Hh-y)*row),y*row);
+  for(let i=3;i<img.data.length;i+=4)img.data[i]=255;bx.putImageData(img,0,0);
+  const c=document.createElement('canvas');c.width=w;c.height=h;const cx=c.getContext('2d');cx.imageSmoothingQuality='high';cx.drawImage(big,0,0,w,h);return c;}
 function snapshot(w,h,view){const vo=camera.view&&camera.view.enabled?Object.assign({},camera.view):null;camera.clearViewOffset();const sz=new THREE.Vector2();renderer.getSize(sz);const pr=renderer.getPixelRatio(),asp=camera.aspect,fov=camera.fov;
   const cp=camera.position.clone(),ct=controls.target.clone();
   if(view){const V=VIEWS[view];camera.position.set(...V.p).multiplyScalar(S);controls.target.set(...V.t).multiplyScalar(S);camera.lookAt(controls.target);}
-  renderer.setPixelRatio(1);renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1.1?Math.min(68,34*1.1/(w/h)):34;camera.updateProjectionMatrix();
-  renderer.render(scene,camera);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(renderer.domElement,0,0,w,h);
+  camera.aspect=w/h;camera.fov=w/h<1.1?Math.min(68,34*1.1/(w/h)):34;camera.updateProjectionMatrix();
+  const c=renderToCanvas(w,h);
   camera.position.copy(cp);controls.target.copy(ct);camera.lookAt(ct);renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);camera.aspect=asp;camera.fov=fov;if(vo)camera.setViewOffset(vo.fullWidth,vo.fullHeight,vo.offsetX,vo.offsetY,vo.width,vo.height);camera.updateProjectionMatrix();renderer.render(scene,camera);return c;}
 /* operation steps: the camera frames the parts of the step (from the step's preset side), fitted to a phone held upright and to the
    part of the 3D that the sheet leaves free. Once the user turns the view by hand, steps keep that view until «Показать шаг». */
@@ -2252,7 +2271,7 @@ function stepView(){if(!curOp||userCam)return;const s=curOp.steps[curStep],V=VIE
   if(RM){camera.position.copy(p);controls.target.copy(c);fly=null;return;}
   fly={p0:camera.position.clone(),t0:controls.target.clone(),p,t:c,s:performance.now(),d:900};}
 /* studio shot of a few parts alone (custom cards): other parts, floor and flows hidden for one frame, then everything back */
-function partShot(ids,w,h,o){o=o||{};const keep=new Set(ids),vis=[];
+function partShot(ids,w,h,o){o=o||{};if(o.all)ids=Object.values(P).filter(p=>p.g.visible&&!p.gone&&p.layer!=='tool'&&p.layer!=='fx'&&p.cur.op>0.5).map(p=>p.id);const keep=new Set(ids),vis=[];
   const sv=o2=>{vis.push([o2,o2.visible]);};
   Object.values(P).forEach(p=>{sv(p.g);p.g.visible=keep.has(p.id)&&!p.gone;});
   [turntable,ticks,flowGroup,window.__floorSh].forEach(x=>{if(x){sv(x);x.visible=false;}});
@@ -2261,11 +2280,14 @@ function partShot(ids,w,h,o){o=o||{};const keep=new Set(ids),vis=[];
   const c=box.getCenter(new V3()),rad=Math.max(0.05,box.getSize(new V3()).length()/2);
   const bg0=scene.background,cp=camera.position.clone(),ct=controls.target.clone(),asp=camera.aspect,fov=camera.fov,vo=camera.view&&camera.view.enabled?Object.assign({},camera.view):null;
   const sz=new THREE.Vector2();renderer.getSize(sz);const pr=renderer.getPixelRatio();
-  scene.background=new THREE.Color(o.bg||'#F3F4F5');camera.clearViewOffset();camera.aspect=w/h;camera.fov=30;camera.updateProjectionMatrix();
+  scene.background=new THREE.Color(o.bg||'#F3F4F5');camera.clearViewOffset();camera.aspect=w/h;camera.fov=o.fov||30;camera.updateProjectionMatrix();
   const dir=new V3(...(o.dir||[0.55,0.42,0.72])).normalize(),dist=rad/Math.sin(camera.fov*Math.PI/360)*1.05;
   camera.position.copy(c).addScaledVector(dir,dist);camera.lookAt(c);
-  renderer.setPixelRatio(1);renderer.setSize(w,h,false);renderer.render(scene,camera);
-  const out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(renderer.domElement,0,0,w,h);
+  if(o.flat)scene.overrideMaterial=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide});
+  /* o.groups: {partId: colour} flat colours per part in one frame (used to draw the loader's line silhouette) */
+  const swapped=[];if(o.groups){scene.overrideMaterial=null;const cache={};ids.forEach(id=>{const col=o.groups[id]!=null?o.groups[id]:0x000000;const mm=cache[col]||(cache[col]=new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));
+    P[id].g.traverse(m=>{if(m.isMesh){swapped.push([m,m.material]);m.material=mm;}});});}
+  const out=renderToCanvas(w,h);scene.overrideMaterial=null;swapped.forEach(([m,q])=>m.material=q);
   vis.forEach(([x,v])=>x.visible=v);mats.forEach(([q,op,em,dw])=>{q.opacity=op;q.depthWrite=dw;if(em)q.emissive.copy(em);});
   scene.background=bg0;camera.position.copy(cp);controls.target.copy(ct);camera.lookAt(ct);camera.aspect=asp;camera.fov=fov;if(vo)camera.setViewOffset(vo.fullWidth,vo.fullHeight,vo.offsetX,vo.offsetY,vo.width,vo.height);camera.updateProjectionMatrix();
   renderer.setPixelRatio(pr);renderer.setSize(sz.x,sz.y,false);renderer.render(scene,camera);return out;}

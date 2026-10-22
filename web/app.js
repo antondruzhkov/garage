@@ -551,9 +551,9 @@ function drawCard(rec){const W=1080,Hh=1350,c=document.createElement('canvas');c
   return c;}
 const cardThumbs={};
 function cardThumb(rec){if(cardThumbs[rec.id])return cardThumbs[rec.id];
-  try{const u=localStorage.getItem('garage-card-'+rec.id);if(u){cardThumbs[rec.id]=u;return u;}}catch(e){}
+  try{const u=localStorage.getItem('garage-card2-'+rec.id);if(u){cardThumbs[rec.id]=u;return u;}}catch(e){}
   if(!E.ready)return null;const big=drawCard(rec),c=document.createElement('canvas');c.width=324;c.height=405;c.getContext('2d').drawImage(big,0,0,324,405);
-  const u=c.toDataURL('image/jpeg',.8);cardThumbs[rec.id]=u;try{localStorage.setItem('garage-card-'+rec.id,u);}catch(e){}return u;}
+  const u=c.toDataURL('image/jpeg',.8);cardThumbs[rec.id]=u;try{localStorage.setItem('garage-card2-'+rec.id,u);}catch(e){}return u;}
 function makeCard(){const rec=cardRec();store.set(s=>s.cards.push(rec));openCard(rec,true);}
 function openCard(rec,isNew){let c;try{c=drawCard(rec);}catch(e){console.warn(e);toast('Не получилось собрать карточку');return;}
   const url=c.toDataURL('image/png');
@@ -562,7 +562,7 @@ function openCard(rec,isNew){let c;try{c=drawCard(rec);}catch(e){console.warn(e)
    <p class="small muted" id="cardHint" hidden>Зажми картинку и сохрани в галерею.</p>
    <div class="row"><button class="btn primary" id="cardGo">${inTG?'Сохранить в галерею':'Поделиться'}</button><button class="btn" id="cardDel">Удалить</button></div>`,
    {kind:'card',size:'tall',label:'Карточка',onClose:()=>{if(view==='cabinet')renderCabinet();}});
-  b.querySelector('#cardDel').onclick=()=>{store.set(s=>{s.cards=s.cards.filter(x=>x.id!==rec.id);});delete cardThumbs[rec.id];try{localStorage.removeItem('garage-card-'+rec.id);}catch(e){}closeSheet();toast('Карточку удалили');};
+  b.querySelector('#cardDel').onclick=()=>{store.set(s=>{s.cards=s.cards.filter(x=>x.id!==rec.id);});delete cardThumbs[rec.id];try{localStorage.removeItem('garage-card2-'+rec.id);}catch(e){}closeSheet();toast('Карточку удалили');};
   b.querySelector('#cardGo').onclick=async()=>{
     if(inTG){let ok=false;try{if(tgv('8.0')&&TG.downloadFile){TG.downloadFile({url,file_name:'garage-r9t.png'},r=>{if(r)track('card_shared',{via:'tg_download'});});ok=true;}}catch(e){ok=false;}
       if(!ok){b.querySelector('#cardHint').hidden=false;track('card_shared',{via:'tg_hold'});}return;}
