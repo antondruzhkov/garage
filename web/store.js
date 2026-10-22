@@ -6,7 +6,7 @@
 const LS_KEY='garage-state',CHUNK=4000,PH='garage-photo-';
 const DEF=()=>({v:1,onboarded:false,createdAt:Date.now(),
   bike:{model:'scrambler',color:'#5a5e5f',plate:'',km:null,lastTo:{date:'',km:null}},
-  history:[],pro:{trialStart:null,wanted:false},custom:[],customWanted:false});
+  history:[],pro:{trialStart:null,wanted:false},custom:[],customWanted:false,album:[]});
 function merge(a,b){if(!b||typeof b!=='object')return a;Object.keys(b).forEach(k=>{if(a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k])&&b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k]))a[k]=merge(a[k],b[k]);else a[k]=b[k];});return a;}
 
 function tgCloud(){try{const W=window.Telegram&&Telegram.WebApp;if(W&&W.initData&&W.CloudStorage&&(!W.isVersionAtLeast||W.isVersionAtLeast('6.9')))return W.CloudStorage;}catch(e){}return null;}
@@ -35,7 +35,7 @@ const store={
   async init(){impl=tgCloud()?Cloud:Local;let s=null;try{s=await impl.load();}catch(e){s=null;}
     /* inside Telegram with an empty cloud: take what the browser had on this device */
     if(!s&&impl===Cloud){try{s=await Local.load();}catch(e){}}
-    state=merge(DEF(),s||{});if(!Array.isArray(state.custom))state.custom=[];if(!Array.isArray(state.history))state.history=[];return state;},
+    state=merge(DEF(),s||{});if(!Array.isArray(state.custom))state.custom=[];if(!Array.isArray(state.history))state.history=[];if(!Array.isArray(state.album))state.album=[];return state;},
   set(fn){try{fn(state);}catch(e){console.warn('store',e);}clearTimeout(timer);timer=setTimeout(()=>store.flush(),250);},
   flush(){clearTimeout(timer);const snap=JSON.parse(JSON.stringify(state));saving=saving.then(()=>impl.save(snap)).catch(e=>{console.warn('store save',e);return false;});
     if(impl===Cloud)Local.save(snap);return saving;},

@@ -26,6 +26,11 @@ if(/tgWebApp/.test(location.hash)||window.TelegramWebviewProxy||/[?&]tg=1/.test(
   <div class="opbar" id="opbar" hidden><button class="ghostbtn" id="opExit" aria-label="Выйти из операции"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b id="opTitle"></b></div>
 </header>
 
+<div class="secstep" id="secStep" role="group" aria-label="Раздел мотоцикла">
+  <button class="sarrow" id="secPrev" aria-label="Предыдущий раздел"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button class="stitle" id="secTitle"><b id="secName">Мотоцикл</b><span class="sdots" id="secDots" aria-hidden="true"></span></button>
+  <button class="sarrow" id="secNext" aria-label="Следующий раздел"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+</div>
 <nav class="secs" id="secs" aria-label="Разделы мотоцикла">
   <button data-sec="bike" aria-pressed="true">Мотоцикл</button>
   <button data-sec="engine" aria-pressed="false">Двигатель</button>
@@ -46,13 +51,18 @@ if(/tgWebApp/.test(location.hash)||window.TelegramWebviewProxy||/[?&]tg=1/.test(
     <div class="tag3d" id="tag3d">ВИД: ОБЩИЙ</div>
     <div class="tip" id="tip" hidden></div>
     <div id="dash" hidden></div>
-    <button class="infobtn" id="infoBtn" hidden><span id="infoLbl">О разделе</span><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    
+    <div class="ctrpill" id="ctrPill" hidden><button class="ctropen" id="ctrOpen"><i id="ctrDot"></i><span>Контур: <b id="ctrLbl"></b></span></button><button class="ctroff" id="ctrOff" aria-label="Выключить контур"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Выключить</span></button></div>
+    <div class="ghint" id="gHint" hidden aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M12 3v7M8 6l4-3 4 3"/><path d="M7 13a5 5 0 0 0 10 0v-2a1.5 1.5 0 0 0-3 0v-1a1.5 1.5 0 0 0-3 0V7a1.5 1.5 0 0 0-3 0v6"/></svg>Крути пальцем</span><span>Два пальца: зум</span><span>Тап по детали: что это</span></div>
     <div class="catpill" id="catPill" hidden><span id="catLbl"></span><button id="catOff" aria-label="Убрать подсветку"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
-    <div class="fabs" id="fabs">
-      <div class="exslider" id="exSlider" hidden><input id="exRange" type="range" min="0" max="100" value="0" aria-label="Насколько разобрать"></div>
-      <button class="fab" id="fabRot" aria-pressed="true" aria-label="Вращение"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg></button>
-      <button class="fab" id="fabXray" aria-pressed="false" aria-label="Прозрачно"><svg viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6" stroke-dasharray="2.4 2.4"/></svg></button>
-      <button class="fab" id="fabEx" aria-pressed="false" aria-label="Разобрать. Долгое нажатие: ползунок"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg></button>
+    <div class="tools" id="tools">
+      <div class="exrow" id="exRow" hidden><label for="exRange">Разбор</label><input id="exRange" type="range" min="0" max="100" value="0"><output id="exVal">0%</output></div>
+      <div class="tbar" role="toolbar" aria-label="Управление 3D">
+        <button class="tool" id="fabInfo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span id="infoLbl">Подробнее</span></button>
+        <button class="tool" id="fabRot" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg><span>Вращение</span></button>
+        <button class="tool" id="fabXray" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6" stroke-dasharray="2.4 2.4"/></svg><span>Прозрачно</span></button>
+        <button class="tool" id="fabEx" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg><span id="exLbl">Разобрать</span></button>
+      </div>
     </div>
   </div>
   <aside class="side" id="side"><div id="panel" aria-live="polite"></div></aside>

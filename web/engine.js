@@ -1802,13 +1802,13 @@ function renderPanel(){
     <div id="pickbox"></div>
     <h3>Контуры: как он живёт</h3>
     <p class="lead">Выбери контур: всё остальное станет прозрачным, а по цепочке побежит поток. Внутренние детали контура тоже покажутся.</p>
-    <ul class="ctr">${CONTOURS.map(c=>`<li><button data-sys="${c.id}" aria-pressed="${activeSys===c.id}"><i style="background:${c.c}"></i><span><b>${c.n}</b><em>${c.chain}</em></span></button></li>`).join('')}</ul>
+    <ul class="ctr" role="radiogroup" aria-label="Контур"><li><button data-sys="" role="radio" aria-pressed="${!activeSys}" aria-checked="${!activeSys}"><i style="background:var(--line)"></i><span><b>Весь мотоцикл</b><em>Без контура, все детали как есть</em></span></button></li>${CONTOURS.map(c=>`<li><button data-sys="${c.id}" role="radio" aria-checked="${activeSys===c.id}" aria-pressed="${activeSys===c.id}"><i style="background:${c.c}"></i><span><b>${c.n}</b><em>${c.chain}</em></span></button></li>`).join('')}</ul>
     <h3>Ключевые цифры</h3><dl class="specs">${SPECS.map(s=>`<dt>${s[0]}</dt><dd>${s[1]}</dd>`).join('')}</dl>
     <h3>Что важно знать про модель</h3>
     <p class="lead">Это схема для обслуживания: где стоит деталь, как снимается, чем крутить. Расположение узлов, размеры и цвета по данным BMW, формы деталей приближены к оригиналу. Колёса 17/17, как у тебя.</p>
     <h3>Источники</h3><ul class="src">${SOURCES.map(s=>`<li><a href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a></li>`).join('')}</ul>`;
     renderPick();
-    panel.querySelectorAll('[data-sys]').forEach(b=>b.onclick=()=>{activeSys=activeSys===b.dataset.sys?null:b.dataset.sys;panel.querySelectorAll('[data-sys]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.sys===activeSys));setFlow(CONTOURS.find(c=>c.id===activeSys));if(activeSys){explode=0;const ex=document.getElementById('ex');if(ex)ex.value=0;}setTargets();});
+    panel.querySelectorAll('[data-sys]').forEach(b=>b.onclick=()=>setContour(b.dataset.sys||null));
     hud3D();
   }
   else if(tab==='engine'){
@@ -1974,7 +1974,7 @@ function setTargets(){altCoils();
 }
 
 const TABS=['bike','engine','drive','brakes','elec','dash','service','cat'];
-function setTab(t){if(t!=='cat')CATSHOW=null;tab=t;if(t!=='bike'&&activeSys){activeSys=null;setFlow(null);}TABS.forEach(x=>{const el=document.getElementById('t-'+x);if(el)el.setAttribute('aria-selected',x===t);});
+function setTab(t){if(t!=='cat')CATSHOW=null;tab=t;if(t!=='bike'&&activeSys){activeSys=null;setFlow(null);if(H.contour)H.contour(null);}TABS.forEach(x=>{const el=document.getElementById('t-'+x);if(el)el.setAttribute('aria-selected',x===t);});
   if(t==='dash')picked=null;else if(picked&&SYSDEF[t]&&!SYSDEF[t].set.has(picked))picked=null;
   const dEl=document.getElementById('dash');dEl.hidden=t!=='dash';
   if(t==='dash'){renderPanel();if(window.DASH)DASH.onShow();return;}
@@ -2197,8 +2197,12 @@ function setPlate(txt){txt=String(txt||'').trim().toUpperCase().slice(0,12);
 function setPaint(hex){const col=new THREE.Color(hex||0x5a5e5f);scene.traverse(o=>{if(!o.material)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(q=>{if(q.userData&&q.userData.k==='paint')q.color.copy(col);});});}
 function homeView(){if(tab==='cat'&&CATSHOW){catFocusView();return;}if(tab==='service'&&curOp){goView(curOp.steps[curStep].v);return;}
   goView(SYSDEF[tab]&&VIEWS['sys_'+tab]?'sys_'+tab:(tab==='engine'?'engine':'overall'));}
+/* contours work like radio buttons: «Весь мотоцикл» or exactly one contour */
+function setContour(id){activeSys=id&&CONTOURS.some(c=>c.id===id)?id:null;
+  panel.querySelectorAll('[data-sys]').forEach(x=>{const on=(x.dataset.sys||null)===activeSys;x.setAttribute('aria-pressed',on);x.setAttribute('aria-checked',on);});
+  setFlow(CONTOURS.find(c=>c.id===activeSys));if(activeSys)explode=0;setTargets();if(H.contour)H.contour(activeSys?CONTOURS.find(c=>c.id===activeSys):null);}
 function setExplode(v){const o=explode;explode=Math.max(0,Math.min(1,v));dolly((1+0.9*explode)/(1+0.9*o));
-  if(explode>0&&activeSys){activeSys=null;setFlow(null);panel.querySelectorAll('[data-sys]').forEach(x=>x.setAttribute('aria-pressed','false'));}setTargets();}
+  if(explode>0&&activeSys){setContour(null);return;}setTargets();}
 /* still frame of the current view at any size (for the share card) */
 function snapshot(w,h,view){const vo=camera.view&&camera.view.enabled?Object.assign({},camera.view):null;camera.clearViewOffset();const sz=new THREE.Vector2();renderer.getSize(sz);const pr=renderer.getPixelRatio(),asp=camera.aspect,fov=camera.fov;
   const cp=camera.position.clone(),ct=controls.target.clone();
@@ -2209,7 +2213,7 @@ function snapshot(w,h,view){const vo=camera.view&&camera.view.enabled?Object.ass
 window.R9T={
   P,OPS,VIEWS,SYSDEF,CAT,
   get tab(){return tab;},get ready(){return GLB_OK;},get explode(){return explode;},get autoRot(){return autoRot;},get xray(){return xray;},get op(){return curOp;},get step(){return curStep;},
-  setTab,renderPanel,pickAt,select,setPlate,setPaint,homeView,setExplode,snapshot,goView,
+  setTab,renderPanel,setContour,CONTOURS,get contour(){return activeSys;},pickAt,select,setPlate,setPaint,homeView,setExplode,snapshot,goView,
   setAutoRot(v){autoRot=!!v;},setXray(v){xray=!!v;setTargets();},
   opOpen(id){curOp=OPS.find(o=>o.id===id)||null;curStep=0;setTab('service');return curOp;},
   opStep(i){if(!curOp)return;curStep=Math.max(0,Math.min(curOp.steps.length-1,i));setTargets();goView(curOp.steps[curStep].v);},

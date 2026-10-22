@@ -56,6 +56,7 @@ function proLabel(){if(URLQ.get('pro')==='1')return 'Pro (тест ?pro=1)';cons
 function plural(n,a,b,c){n=Math.abs(n)%100;const n1=n%10;if(n>10&&n<20)return c;if(n1>1&&n1<5)return b;if(n1===1)return a;return c;}
 const FREE_OP='oilLevel';
 const FREE_HISTORY=3;
+const FREE_PHOTOS=3;
 const canOp=id=>id===FREE_OP||isPro();
 
 /* ================= service data (only what r9t has) ================= */
@@ -114,7 +115,10 @@ function closeSheet(silent){const sh=$('sheet');if(!sheetKind)return;const k=she
   sh.hidden=true;$('sbody').innerHTML='';if(cb)cb(silent);syncBack();syncInset();return k;}
 /* mobile: keep the bike in the part of the 3D that the sheet does not cover */
 const mqDesk=window.matchMedia('(min-width:900px)');
-function syncInset(){const sh=$('sheet');let px=0;if(!sh.hidden&&!mqDesk.matches&&view==='garage'){const bay=$('bay').getBoundingClientRect(),r=sh.getBoundingClientRect();px=Math.max(0,bay.bottom-r.top);px=Math.min(px,bay.height*0.6);}try{E.setInset(px);}catch(e){}}
+function syncInset(){const sh=$('sheet'),bay=$('bay').getBoundingClientRect();let px=0;
+  if(!sh.hidden&&!mqDesk.matches&&view==='garage'){const r=sh.getBoundingClientRect();px=Math.min(Math.max(0,bay.bottom-r.top),bay.height*0.6);}
+  else if(!mqDesk.matches){const t=$('tools');if(!t.hidden&&t.offsetParent)px=Math.max(0,bay.bottom-t.getBoundingClientRect().top-8);}
+  try{E.setInset(px);}catch(e){}}
 new ResizeObserver(()=>syncInset()).observe($('sheet'));mqDesk.addEventListener('change',syncInset);
 $('sheetX').onclick=()=>{if(sheetKind==='step')exitOp();else closeSheet();};
 /* swipe the sheet down to close (mobile) */
@@ -158,33 +162,57 @@ function renderHeader(){const b=S().bike;
 $('who').onclick=()=>setView('cabinet');
 
 /* ================= garage: sections, buttons, gestures ================= */
-const SEC_LABEL={bike:'Контуры и цифры',engine:'Такты и передачи',drive:'Передачи и привод',brakes:'Из чего состоят',elec:'Из чего состоит',dash:'Сигналы приборки'};
-function setSec(s){sec=s;app.dataset.sec=s;document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sec===s));
-  const btn=document.querySelector(`#secs [data-sec="${s}"]`);if(btn)btn.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
-  $('catPill').hidden=true;if(sheetKind==='part'||sheetKind==='info')closeSheet(true);
-  E.select(null);E.setTab(s);$('infoLbl').textContent=SEC_LABEL[s]||'О разделе';$('infoBtn').hidden=false;syncFabs();syncBack();}
+/* phone: one big section name in the middle, arrows (and a swipe) step through all six, a tap on the name lists them.
+   desktop: all six as chips, there is room */
+const SECS=[['bike','Мотоцикл'],['engine','Двигатель'],['drive','Привод'],['brakes','Тормоза'],['elec','Электрика'],['dash','Приборка']];
+const SEC_HINT={bike:'Контуры, цифры, источники',engine:'Такты, передачи, детали',drive:'Передачи, сцепление, кардан',brakes:'Диски, суппорты, ABS',elec:'Жгуты, блоки, датчики',dash:'Лампы и что они значат'};
+const secIdx=s=>SECS.findIndex(x=>x[0]===s);
+$('secDots').innerHTML=SECS.map(()=>'<i></i>').join('');
+function setSec(s,dir){sec=s;app.dataset.sec=s;document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sec===s));
+  const i=secIdx(s),nm=$('secName');nm.textContent=SECS[i][1];
+  if(dir){nm.classList.remove('in-l','in-r');void nm.offsetWidth;nm.classList.add(dir>0?'in-r':'in-l');}
+  $('secTitle').setAttribute('aria-label',`Раздел ${SECS[i][1]}, ${i+1} из ${SECS.length}. Открыть список`);
+  $('secDots').querySelectorAll('i').forEach((d,k)=>d.classList.toggle('on',k===i));
+  $('catPill').hidden=true;$('ctrPill').hidden=true;if(sheetKind==='part'||sheetKind==='info'||sheetKind==='secs')closeSheet(true);
+  E.select(null);E.setTab(s);$('infoLbl').textContent=s==='dash'?'Сигналы':'Подробнее';syncFabs();syncBack();}
+function stepSec(d){const i=(secIdx(sec)+d+SECS.length)%SECS.length;haptic('sel');setSec(SECS[i][0],d);}
 document.querySelectorAll('#secs button').forEach(b=>b.onclick=()=>{if(b.dataset.sec===sec&&E.tab===sec){E.homeView();return;}setSec(b.dataset.sec);});
-$('infoBtn').onclick=()=>{const b=openSheet(document.createDocumentFragment(),{kind:'info',size:sec==='dash'?'tall':'',label:SEC_LABEL[sec]});b.appendChild(panelEl);};
+$('secPrev').onclick=()=>stepSec(-1);$('secNext').onclick=()=>stepSec(1);
+$('secTitle').onclick=()=>{const b=openSheet(`<h2>Разделы</h2><ul class="list" role="radiogroup" aria-label="Разделы">${SECS.map(([k,n])=>`<li><button class="item secitem" role="radio" aria-checked="${k===sec}" data-s="${k}"><span class="dot" style="background:${k===sec?'var(--hazard)':'var(--line)'}"></span><b>${n}</b><span class="sub">${SEC_HINT[k]}</span><span class="end">${k===sec?'<svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12l5 5 9-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</span></button></li>`).join('')}</ul>`,{kind:'secs',size:'tall',label:'Разделы'});
+  b.querySelectorAll('[data-s]').forEach(x=>x.onclick=()=>{const k=x.dataset.s;closeSheet(true);if(k!==sec)setSec(k,secIdx(k)>secIdx(sec)?1:-1);});};
+(function(){const el=$('secStep');let x0=null,y0=null;
+  el.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
+  el.addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.5)stepSec(dx<0?1:-1);});})();
+$('fabInfo').onclick=()=>{const b=openSheet(document.createDocumentFragment(),{kind:'info',size:sec==='dash'?'tall':'',label:SECS[secIdx(sec)][1]});b.appendChild(panelEl);};
 
-function syncFabs(){$('fabRot').setAttribute('aria-pressed',E.autoRot);$('fabXray').setAttribute('aria-pressed',E.xray);
-  const ex=E.explode>0.01;$('fabEx').setAttribute('aria-pressed',ex);$('fabEx').setAttribute('aria-label',ex?'Собрать. Долгое нажатие: ползунок':'Разобрать. Долгое нажатие: ползунок');$('exRange').value=Math.round(E.explode*100);}
+/* contour = one system highlighted with flow; shown as a pill on the 3D with an explicit «off» */
+H.contour=c=>{const p=$('ctrPill');if(!c||E.tab!=='bike'){p.hidden=true;return;}
+  hideHint();$('ctrDot').style.background=c.c;$('ctrLbl').textContent=c.n;p.hidden=false;if(sheetKind==='info'&&!mqDesk.matches)closeSheet(true);syncFabs();};
+$('ctrOff').onclick=()=>{E.setContour(null);haptic('sel');};
+$('ctrOpen').onclick=()=>$('fabInfo').click();
+
+function syncFabs(){const ex=E.explode>0.01;
+  $('fabRot').setAttribute('aria-pressed',E.autoRot);$('fabXray').setAttribute('aria-pressed',E.xray);$('fabEx').setAttribute('aria-pressed',ex);
+  $('exLbl').textContent=ex?'Собрать':'Разобрать';$('exRow').hidden=!ex||opMode||sec==='dash'||view!=='garage';$('exRange').value=Math.round(E.explode*100);
+  $('exVal').textContent=Math.round(E.explode*100)+'%';requestAnimationFrame(syncInset);}
 H.autoRot=()=>syncFabs();
 $('fabRot').onclick=()=>{E.setAutoRot(!E.autoRot);syncFabs();};
 $('fabXray').onclick=()=>{E.setXray(!E.xray);syncFabs();};
-(function(){const b=$('fabEx'),sl=$('exSlider');let t=null,long=false,hideT=null;
-  const hideLater=()=>{clearTimeout(hideT);hideT=setTimeout(()=>sl.hidden=true,5000);};
-  b.addEventListener('pointerdown',()=>{long=false;clearTimeout(t);t=setTimeout(()=>{long=true;sl.hidden=false;haptic('sel');hideLater();},450);});
-  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>clearTimeout(t)));
-  b.addEventListener('contextmenu',e=>e.preventDefault());
-  b.onclick=e=>{if(long){long=false;e.preventDefault();return;}sl.hidden=true;E.setExplode(E.explode>0.01?0:1);syncFabs();};
-  $('exRange').oninput=e=>{E.setExplode(e.target.value/100);syncFabs();hideLater();};})();
+$('fabEx').onclick=()=>{E.setExplode(E.explode>0.01?0:1);syncFabs();};
+$('exRange').oninput=e=>{E.setExplode(e.target.value/100);syncFabs();};
+
+/* gesture hint: shown until the first touch on the 3D */
+const HINT_KEY='garage-hint-seen';
+function showHint(){let seen=false;try{seen=!!localStorage.getItem(HINT_KEY);}catch(e){}if(seen)return;$('gHint').hidden=false;setTimeout(hideHint,8000);}
+function hideHint(){if($('gHint').hidden)return;$('gHint').hidden=true;try{localStorage.setItem(HINT_KEY,'1');}catch(e){}}
+$('gl').addEventListener('pointerdown',hideHint);
 
 /* tap = what is this part, double tap = back to the section's overall view */
 let tapT=null,lastTap=0;
 H.tap=(x,y)=>{if(view!=='garage')return;const now=Date.now();
-  if(now-lastTap<330){clearTimeout(tapT);tapT=null;lastTap=0;$('exSlider').hidden=true;if(sheetKind==='part')closeSheet();E.select(null);E.homeView();return;}
+  if(now-lastTap<330){clearTimeout(tapT);tapT=null;lastTap=0;if(sheetKind==='part')closeSheet();E.select(null);E.homeView();return;}
   lastTap=now;clearTimeout(tapT);tapT=setTimeout(()=>{tapT=null;onTap(x,y);},280);};
-function onTap(x,y){$('exSlider').hidden=true;if(opMode)return;
+function onTap(x,y){if(opMode)return;
   const id=E.pickAt(x,y);if(!id){E.select(null);if(sheetKind==='part')closeSheet();return;}
   E.select(id);openPart(id);}
 const PNRE=/\b\d{2} \d{2} \d \d{3} \d{3}\b/;
@@ -303,7 +331,7 @@ function diagHTML(d,q,auto){const open=catOpen===d.id||auto,link=E.CAT.linkOf(d)
    ${d.n&&d.n.length?`<p class="small muted">${d.n.map(esc).join('<br>')}</p>`:''}</div>`:''}</li>`;}
 function catShow(id){const d=CATDATA.find(x=>x.id===id);if(!d)return;if(!isPro()){openPro('cat');return;}
   setView('garage');closeSheet(true);E.setTab('cat');E.CAT.show(d);document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed','false'));
-  $('catLbl').textContent=`Подсветка: ${d.id} ${d.t}`;$('catPill').hidden=false;$('infoBtn').hidden=true;track('cat_show',{id});syncBack();}
+  $('catLbl').textContent=`Подсветка: ${d.id} ${d.t}`;$('catPill').hidden=false;$('ctrPill').hidden=true;track('cat_show',{id});syncBack();}
 function catOff(){E.CAT.show(null);setSec(sec);}
 $('catOff').onclick=catOff;
 
@@ -315,7 +343,7 @@ const SIL={
  mirrors:'<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="34" r="14"/><circle cx="72" cy="34" r="14"/><path d="M34 46l8 26M66 46l-8 26M34 76h32"/></svg>'};
 function renderCustom(){const el=SCREENS.custom,w=S().customWanted;
   el.innerHTML=`<div class="wrap"><h1>Кастомайзинг скоро</h1>
-   <p class="lead">Оцифровываем кастомные детали для R nineT от производителей. Примеришь их на свой байк в 3D до покупки.</p>
+   <p class="lead">Оцифровываем кастомные детали для R nineT от производителей. Примеришь их на свой байк в 3D до покупки. Будет в Pro.</p>
    <div class="cgrid">${[['bars','Руль'],['exhaust','Выхлоп'],['mirrors','Зеркала']].map(([k,n])=>`<div class="ccard"><span class="lk">${ICON_LOCK}</span>${SIL[k]}<div>${n}</div></div>`).join('')}</div>
    <button class="btn primary block" id="wantCustom" ${w?'disabled':''}>${w?'Записали, позовём первым':'Хочу кастом'}</button></div>`;
   el.querySelector('#wantCustom').onclick=()=>{store.set(s=>s.customWanted=true);track('custom_wanted');haptic('ok');toast('Записали, позовём первым');renderCustom();};}
@@ -339,6 +367,9 @@ function renderCabinet(){const el=SCREENS.cabinet,st=S(),b=st.bike,u=tgUser(),pr
    <button class="btn block" id="addH" style="margin-bottom:10px">Добавить запись</button>
    ${hist.length?`<ul class="list hist">${hist.map(h=>{const ph=h.photo&&store.getPhoto(h.id);return `<li><button class="item" data-h="${h.id}">${ph?`<img class="thumb" src="${ph}" alt="">`:`<span class="ico"><svg viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0 5 5L21 13l-8 8-2-2 7-7-1.5-1.5a4 4 0 0 0-5-5l2.5 2.5-2 2z"/><path d="M3 21l6-6"/></svg></span>`}<b>${esc(h.what||'Обслуживание')}</b><span class="sub">${[fmtDate(h.date),h.km!=null?nf(h.km)+' км':'',h.where].filter(Boolean).map(esc).join(' · ')}</span></button></li>`;}).join('')}</ul>`:'<p class="lead">Пока пусто. Отметь операцию кнопкой «Сделал» или добавь запись сам.</p>'}
    ${pro?'':`<p class="small muted">Бесплатно до ${FREE_HISTORY} записей, у тебя ${st.history.length}.</p>`}
+   <h2>Фотоальбом</h2>
+   ${store.photosAllowed?`<div class="album">${st.album.slice().reverse().map(a=>{const u=store.getPhoto('a_'+a.id);return u?`<button class="ph" data-ph="${a.id}"><img src="${u}" alt="Фото байка ${esc(fmtDate(a.date))}"></button>`:'';}).join('')}<label class="ph add" aria-label="Добавить фото"><input type="file" id="phAdd" accept="image/*" multiple><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Фото</span></label></div>
+   ${pro?'':`<p class="small muted">Бесплатно до ${FREE_PHOTOS} фото, у тебя ${st.album.length}.</p>`}`:'<p class="lead">Фото скоро.</p>'}
    <h2>Pro</h2>
    <div class="card"><p style="margin:0 0 10px"><span class="badge ${pro?'':'off'}">${pro?'PRO':'FREE'}</span> ${esc(proLabel())}</p><button class="btn block" id="proMore">Что даёт Pro</button></div>
    <p class="small muted">Данные хранятся ${store.kind==='telegram'?'в облаке Telegram и открываются на любом твоём устройстве':'в этом браузере'}.${store.photosAllowed?'':' Фото заказ-нарядов скоро.'}</p></div>`;
@@ -346,6 +377,8 @@ function renderCabinet(){const el=SCREENS.cabinet,st=S(),b=st.bike,u=tgUser(),pr
   el.querySelector('#mkCard').onclick=()=>makeCard();
   el.querySelector('#addH').onclick=()=>openHistoryForm();
   el.querySelector('#proMore').onclick=()=>openPro('cabinet');
+  const pa=el.querySelector('#phAdd');if(pa)pa.onchange=()=>addPhotos([...(pa.files||[])]);
+  el.querySelectorAll('[data-ph]').forEach(x=>x.onclick=()=>openPhoto(x.dataset.ph));
   el.querySelectorAll('[data-h]').forEach(x=>x.onclick=()=>openRecord(x.dataset.h));}
 
 function openRecord(id){const h=S().history.find(x=>x.id===id);if(!h)return;const ph=h.photo&&store.getPhoto(h.id);
@@ -373,6 +406,17 @@ function openHistoryForm(pre){pre=pre||{};const b0=S().bike;let photo=null;
     if(!addHistory(rec,'manual'))return;
     if(photo&&!store.putPhoto(rec.id,photo)){store.set(s=>{const r=s.history.find(x=>x.id===rec.id);if(r)r.photo=false;});toast('Фото не влезло в память браузера, запись сохранена');}
     haptic('ok');closeSheet();if(view==='cabinet')renderCabinet();else if(view==='service')renderService();toast('Записали в историю');};}
+/* photo album: browser only (localStorage), like work-order photos */
+async function addPhotos(files){if(!files.length)return;let added=0;
+  for(const f of files){if(!isPro()&&S().album.length>=FREE_PHOTOS){openPro('album');break;}
+    let u;try{u=await shrink(f,1000,.68);}catch(e){toast('Не получилось прочитать фото');continue;}
+    const id=uid();if(!store.putPhoto('a_'+id,u)){toast('Память браузера заполнена, фото не сохранилось');break;}
+    store.set(s=>s.album.push({id,date:todayISO()}));added++;}
+  if(added){haptic('ok');toast(added>1?`Добавили ${added} фото`:'Фото в альбоме');}
+  if(view==='cabinet')renderCabinet();}
+function openPhoto(id){const a=S().album.find(x=>x.id===id),u=store.getPhoto('a_'+id);if(!a||!u)return;
+  const b=openSheet(`<div class="kicker">${esc(fmtDate(a.date))}</div><img class="cardimg" src="${u}" alt="Фото байка"><button class="btn block" id="phDel">Удалить фото</button>`,{kind:'photo',size:'tall',label:'Фото'});
+  b.querySelector('#phDel').onclick=()=>{store.set(s=>{s.album=s.album.filter(x=>x.id!==id);});store.delPhoto('a_'+id);closeSheet();renderCabinet();toast('Удалили');};}
 function shrink(file,max,q){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');
   c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q));};i.onerror=e=>{URL.revokeObjectURL(u);rej(e);};i.src=u;});}
 
@@ -387,7 +431,7 @@ function openBike(first){const b=S().bike;let color=b.color,saved=false;
    <div class="f2"><div class="f"><label for="bTd">Последнее ТО: дата</label><input id="bTd" type="date" value="${esc(b.lastTo.date)}"></div>
    <div class="f"><label for="bTk">Пробег на ТО, км</label><input id="bTk" type="number" inputmode="numeric" min="0" step="1" value="${b.lastTo.km!=null?b.lastTo.km:''}"></div></div>
    <div class="row"><button class="btn" id="bSkip">${first?'Пропустить':'Отмена'}</button><button class="btn primary" id="bSave">${first?'Готово':'Сохранить'}</button></div>`,
-   {kind:'bike',size:first?'':'tall',label:first?'Это твой?':'Мой байк',onClose:()=>{if(!saved){E.setPaint(S().bike.color);E.setPlate(S().bike.plate);}if(first&&!S().onboarded)store.set(s=>s.onboarded=true);}});
+   {kind:'bike',size:first?'':'tall',label:first?'Это твой?':'Мой байк',onClose:()=>{if(!saved){E.setPaint(S().bike.color);E.setPlate(S().bike.plate);}if(first&&!S().onboarded)store.set(s=>s.onboarded=true);if(first)setTimeout(showHint,300);}});
   const pick=c=>{color=c;E.setPaint(c);sh.querySelectorAll('.sw').forEach(x=>x.setAttribute('aria-pressed',x.dataset.c?x.dataset.c.toLowerCase()===c.toLowerCase():PALETTE.every(p=>p[0].toLowerCase()!==c.toLowerCase())));sh.querySelector('#swName').textContent=colorName(c);haptic('sel');};
   sh.querySelectorAll('.sw[data-c]').forEach(x=>x.onclick=()=>pick(x.dataset.c));
   sh.querySelector('#swOwn').oninput=e=>pick(e.target.value);
@@ -405,7 +449,7 @@ function openBike(first){const b=S().bike;let color=b.color,saved=false;
 
 /* ================= Pro ================= */
 function openPro(reason){const pro=isPro(),w=S().pro.wanted,P=CFG.price||{};
-  const why={op:'Эта операция в Pro. Бесплатно открыта первая: «Проверить уровень масла».',history:`Бесплатно до ${FREE_HISTORY} записей в истории.`,cat:'Подсветка схемы на мотоцикле в Pro. Сами схемы и номера бесплатно.',due:'Полный план «что пора сделать» в Pro.'}[reason]||'';
+  const why={op:'Эта операция в Pro. Бесплатно открыта первая: «Проверить уровень масла».',history:`Бесплатно до ${FREE_HISTORY} записей в истории.`,cat:'Подсветка схемы на мотоцикле в Pro. Сами схемы и номера бесплатно.',due:'Полный план «что пора сделать» в Pro.',album:`Бесплатно до ${FREE_PHOTOS} фото в альбоме.`}[reason]||'';
   const yes='<td>да</td>',no='<td class="muted">-</td>';
   const b=openSheet(`<div class="pro-hero"><h3>Гараж Pro</h3><p>${esc(proLabel())}</p></div>
    ${why?`<p>${esc(why)}</p>`:''}
@@ -415,7 +459,9 @@ function openPro(reason){const pro=isPro(),w=S().pro.wanted,P=CFG.price||{};
     <tr><td>Операции по шагам на 3D</td><td class="small">одна</td>${yes}</tr>
     <tr><td>Подсветка схемы на мотоцикле</td>${no}${yes}</tr>
     <tr><td>Что пора сделать по пробегу и дате</td><td class="small">1 пункт</td>${yes}</tr>
-    <tr><td>История ТО</td><td class="small">3 записи</td><td class="small">без лимита</td></tr></table>
+    <tr><td>История ТО</td><td class="small">3 записи</td><td class="small">без лимита</td></tr>
+    <tr><td>Фотоальбом байка</td><td class="small">3 фото</td><td class="small">без лимита</td></tr>
+    <tr><td>Кастом: примерка деталей на свой байк в 3D</td>${no}<td class="small">скоро</td></tr></table>
    <div class="prices"><div class="price"><b>${esc(P.month||'299 ₽/мес')}</b><span>помесячно</span></div><div class="price"><b>${esc(P.year||'1 990 ₽/год')}</b><span>выгоднее на 45%</span></div></div>
    <p id="proMsg" class="card" ${w?'':'hidden'}>Записали. Оплата откроется скоро, продлим тебе триал до запуска.</p>
    <button class="btn primary block" id="proWant" ${w?'disabled':''}>${w?'Ты в списке':'Хочу Pro'}</button>
@@ -473,6 +519,7 @@ if(window.__r9tLoaded)engineReady(true);
   E.setPaint(S().bike.color);E.setPlate(S().bike.plate);
   window.__garageReady=true;
   if(!S().onboarded&&ok&&view==='garage'){E.setAutoRot(true);syncFabs();setTimeout(()=>{if(view==='garage'&&!sheetKind)openBike(true);},900);}
+  if(S().onboarded)showHint();
   E.CAT.load();
 })();
 window.GARAGE={setView,startOp,openPro,makeCard,isPro,back,get view(){return view;},get sheet(){return sheetKind;}};

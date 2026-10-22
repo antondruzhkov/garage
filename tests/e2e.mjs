@@ -59,11 +59,22 @@ async function run(name,ctxOpts,o){
   await shot('03-plate');
   ok(await pg.evaluate(()=>{let v=false;R9T.P.tail.g.traverse(m=>{if(m.geometry&&m.geometry.type==='PlaneGeometry'&&m.material.map&&m.visible)v=true;});return v;}),'plate texture on the bike');
   // sections
-  for(const s of ['engine','drive','brakes','elec','dash','bike']){await tap(`#secs [data-sec="${s}"]`);ok(await pg.evaluate(x=>R9T.tab===x,s),'section '+s);await shot('04-sec-'+s);}
+  // sections: phone steps with the arrows (all six by «next», wraps around), desktop clicks the chips
+  if(mob){ok(await pg.locator('#secs').isHidden(),'phone: no sideways-scrolling chips');
+    for(const s of ['engine','drive','brakes','elec','dash','bike']){await tap('#secNext');ok(await pg.evaluate(x=>R9T.tab===x&&document.getElementById('secName').textContent.length>0,s),'next arrow -> '+s);if(s!=='bike')await shot('04-sec-'+s);}
+    await tap('#secPrev');ok(await pg.evaluate(()=>R9T.tab==='dash'),'prev arrow wraps to Приборка');
+    await tap('#secTitle');ok(await pg.evaluate(()=>GARAGE.sheet==='secs'&&document.querySelectorAll('[data-s]').length===6),'tap on title lists all sections');await shot('04-sec-list');
+    await tap('[data-s="bike"]');ok(await pg.evaluate(()=>R9T.tab==='bike'),'pick section from list');await shot('04-sec-bike');}
+  else for(const s of ['engine','drive','brakes','elec','dash','bike']){await tap(`#secs [data-sec="${s}"]`);ok(await pg.evaluate(x=>R9T.tab===x,s),'section '+s);await shot('04-sec-'+s);}
+  // contours: radio, pill with explicit off
+  if(mob)await tap('#fabInfo');
+  await tap('#panel [data-sys="fuel"]');ok(await pg.evaluate(()=>R9T.contour==='fuel'&&!document.getElementById('ctrPill').hidden),'contour on, pill shown');await shot('05-contour');
+  await tap('#ctrOff');ok(await pg.evaluate(()=>R9T.contour===null&&document.getElementById('ctrPill').hidden),'contour off from pill');
+  if(mob){await tap('#fabInfo');await tap('#panel [data-sys="oil"]');await tap('#fabInfo');await tap('#panel [data-sys=""]');ok(await pg.evaluate(()=>R9T.contour===null),'«Весь мотоцикл» switches contour off');await tap('#sheetX');}
   // info sheet with r9t panel
-  if(mob){await tap('#secs [data-sec="engine"]');await tap('#infoBtn');ok(await pg.evaluate(()=>GARAGE.sheet==='info'&&!!document.querySelector('#sbody #panel h2')),'section info in sheet');await shot('05-engine-info');await tap('#sheetX');await tap('#secs [data-sec="bike"]');}
+  if(mob){await tap('#secNext');await tap('#fabInfo');ok(await pg.evaluate(()=>GARAGE.sheet==='info'&&!!document.querySelector('#sbody #panel h2')),'section info in sheet');await shot('05-engine-info');await tap('#sheetX');await tap('#secPrev');}
   // buttons
-  await tap('#fabEx');ok(await pg.evaluate(()=>R9T.explode>0.9),'explode button');await shot('06-exploded');await tap('#fabEx');ok(await pg.evaluate(()=>R9T.explode<0.01),'assemble button');
+  await tap('#fabEx');ok(await pg.evaluate(()=>R9T.explode>0.9&&!document.getElementById('exRow').hidden),'explode button shows slider');await shot('06-exploded');await tap('#fabEx');ok(await pg.evaluate(()=>R9T.explode<0.01),'assemble button');
   await tap('#fabXray');ok(await pg.evaluate(()=>R9T.xray),'xray button');await tap('#fabXray');
   // tap a part: find a pixel that hits the tank
   await pg.evaluate(()=>R9T.homeView());await pg.waitForTimeout(1300);
@@ -96,10 +107,14 @@ async function run(name,ctxOpts,o){
   await tap('#tabbar [data-view="cabinet"]');await shot('15-cabinet');
   await tap('#addH');await tap('[data-it="brakefluid"]');await pg.fill('#hP','Дилер BMW');await tap('#hSave');
   ok(await pg.evaluate(()=>store.state.history.length===2),'manual history record');
+  if(!o.tg){const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','base64');
+    await pg.setInputFiles('#phAdd',{name:'bike.png',mimeType:'image/png',buffer:png});
+    ok(await pg.waitForFunction(()=>store.state.album.length===1&&document.querySelectorAll('[data-ph]').length===1,null,{timeout:15000}).then(()=>true,()=>false),'photo added to album');}
+  else ok(await pg.locator('#phAdd').count()===0,'TG: album says «Фото скоро»');
   await tap('#mkCard');await pg.waitForSelector('#cardImg');ok(await pg.evaluate(()=>{const i=document.getElementById('cardImg');return i.naturalWidth===1080&&i.naturalHeight===1350;}),'card 1080x1350');await shot('16-card');
   if(o.tg){await tap('#cardGo');ok(await pg.evaluate(()=>!document.getElementById('cardHint').hidden),'TG: hold-to-save hint when downloadFile cannot take data URL');}
   await tap('#sheetX');
-  await tap('#proMore');await shot('17-pro');await tap('#proWant');ok(await pg.evaluate(()=>!document.getElementById('proMsg').hidden),'Хочу Pro message');await tap('#sheetX');
+  await tap('#proMore');await shot('17-pro');ok(await pg.locator('.cmp').innerText().then(t=>t.includes('Фотоальбом')&&t.includes('Кастом')),'Pro table has album and custom');await tap('#proWant');ok(await pg.evaluate(()=>!document.getElementById('proMsg').hidden),'Хочу Pro message');await tap('#sheetX');
   const ev=await pg.evaluate(()=>window.__garageEvents||[]);
   for(const e of ['bike_added','mileage_set','service_logged','op_opened','op_done','cat_show','pro_wanted','card_shared','custom_wanted'].concat(o.tg?['opened_in_telegram']:[]))
     if(!(e==='card_shared'&&!o.tg))ok(ev.includes(e),'event '+e);
