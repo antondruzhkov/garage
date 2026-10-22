@@ -2072,7 +2072,12 @@ function finishScanOffsets(){Object.values(P).forEach(p=>{if(!p.scanU)return;con
   ms.forEach(m=>{const cc=m.userData.compC,off=new Float32Array(cc.length);for(let i=0;i<cc.length;i+=3){let x=cc[i]-c.x,y=cc[i+1]-c.y,z=cc[i+2]-c.z;const L=Math.hypot(x,y,z);if(L>260){x*=260/L;y*=260/L;z*=260/L;}off[i]=x;off[i+1]=y;off[i+2]=z;}
     m.geometry.setAttribute('aOff',new THREE.BufferAttribute(off,3));delete m.userData.compC;});});}
 /* loading screen: an outline bike fills up from the bottom while the detailed scan downloads; the simple placeholder bike is never shown */
-function loaderProgress(f){const r=document.getElementById('ldrect'),t=document.getElementById('ldtxt'),l=document.getElementById('loader');if(l)l.style.setProperty('--p',f);if(r)r.setAttribute('width',330*f);if(!t)return;t.textContent='ЗАГРУЖАЮ МОДЕЛЬ '+Math.round(f*100)+'%';}
+/* loader: a line-drawn bike, the accent runs along it from the seat over the tank and fork onto the front wheel as the model loads */
+function ldRun(f){const a1=document.getElementById('lda1'),a2=document.getElementById('lda2');if(!a1||!a2)return;const L=13,K=0.72;
+  const put=(el,pos)=>{el.style.strokeDasharray=L+' 1000';el.style.strokeDashoffset=String(-Math.max(0,Math.min(100-L,pos-L)));el.style.opacity=1;};
+  if(f<K){put(a1,L+f/K*(100-L));a2.style.opacity=0;}else{a1.style.opacity=0;put(a2,L+(f-K)/(1-K)*(100-L));}}
+window.__garageLoader=ldRun;/* tests drive the loader picture */
+function loaderProgress(f){const r=document.getElementById('ldrect'),t=document.getElementById('ldtxt'),l=document.getElementById('loader');if(l)l.style.setProperty('--p',f);ldRun(f);if(r)r.setAttribute('width',330*f);if(!t)return;t.textContent='ЗАГРУЖАЮ МОДЕЛЬ '+Math.round(f*100)+'%';}
 /* the loader never gives way to the simple placeholder bike: it waits for the real model, says when the network is slow,
    and offers «Повторить» if the download broke */
 let bodyLoading=false,slowT=null;
@@ -2284,7 +2289,7 @@ function partShot(ids,w,h,o){o=o||{};if(o.all)ids=Object.values(P).filter(p=>p.g
   const dir=new V3(...(o.dir||[0.55,0.42,0.72])).normalize(),dist=rad/Math.sin(camera.fov*Math.PI/360)*1.05;
   camera.position.copy(c).addScaledVector(dir,dist);camera.lookAt(c);
   if(o.flat)scene.overrideMaterial=new THREE.MeshBasicMaterial({color:0x000000,side:THREE.DoubleSide});
-  /* o.groups: {partId: colour} flat colours per part in one frame (used to draw the loader's line silhouette) */
+  /* o.groups: {partId: colour} flat colours per part in one frame (part maps, masks) */
   const swapped=[];if(o.groups){scene.overrideMaterial=null;const cache={};ids.forEach(id=>{const col=o.groups[id]!=null?o.groups[id]:0x000000;const mm=cache[col]||(cache[col]=new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));
     P[id].g.traverse(m=>{if(m.isMesh){swapped.push([m,m.material]);m.material=mm;}});});}
   const out=renderToCanvas(w,h);scene.overrideMaterial=null;swapped.forEach(([m,q])=>m.material=q);

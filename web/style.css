@@ -411,11 +411,12 @@ h3.og{font:700 15px/1.3 var(--f-body);margin:18px 0 2px}
 .album.cards .card9{aspect-ratio:4/5;background:#121417}
 .card9 em{position:absolute;left:6px;bottom:6px;font-style:normal;font-size:11px;font-weight:600;color:#F3F4F5;background:rgba(18,20,23,.7);padding:2px 6px;border-radius:6px}
 .card9 img{position:absolute;inset:0}
-/* loader: the real R nineT silhouette (assets/silhouette.png, made from our 3D model) fills up from the left */
-.ldsil{position:relative;width:min(80%,420px);aspect-ratio:709/431}
-.ldsil i{position:absolute;inset:0;-webkit-mask:url(assets/silhouette.png) center/contain no-repeat;mask:url(assets/silhouette.png) center/contain no-repeat}
-.ldbase{background:var(--line)}
-.ldfill{background:var(--hazard);clip-path:inset(0 calc(100% - var(--p,0) * 100%) 0 0);transition:clip-path .35s ease-out}
+/* loader: line-drawn bike, the accent runs along the line with the download progress */
+.ldbike{width:min(82%,400px);height:auto;overflow:visible}
+.ldl path{fill:none;stroke:var(--ink);stroke-width:17;stroke-linecap:round;stroke-linejoin:round}
+.ldl .ldeng{stroke-width:25}
+.lda{fill:none;stroke:var(--hazard);stroke-width:17.5;stroke-linecap:round;stroke-dasharray:13 1000;stroke-dashoffset:0;transition:stroke-dashoffset .35s ease-out}
+#lda2{opacity:0}
 .ldsub{font-size:13px;color:var(--muted);max-width:280px;min-height:18px}
 #ldRetry{min-width:180px}
-@media (prefers-reduced-motion: reduce){.ldfill{transition:none}}
+@media (prefers-reduced-motion: reduce){.lda{transition:none}}

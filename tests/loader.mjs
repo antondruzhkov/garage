@@ -10,7 +10,7 @@ await pg.addInitScript(()=>{localStorage.setItem('garage-state',JSON.stringify({
 let mode='abort';await pg.route(/bike\.wasm/,async r=>{if(mode==='abort')return r.abort();if(mode==='hold'){await new Promise(z=>setTimeout(z,8000));}return r.continue();});
 await pg.goto(base);await pg.waitForFunction(()=>!document.getElementById('ldRetry').hidden,null,{timeout:60000});
 ok(await pg.evaluate(()=>!!document.getElementById('loader')&&!window.__r9tLoaded),'broken download: loader stays, no placeholder bike');
-await pg.screenshot({path:OUT+'/loader-fail.png'});await pg.evaluate(()=>{document.getElementById('loader').style.setProperty('--p',0.5);document.getElementById('ldtxt').textContent='ЗАГРУЖАЮ МОДЕЛЬ 50%';document.getElementById('ldsub').textContent='';document.getElementById('ldRetry').hidden=true;});await pg.waitForTimeout(700);await pg.screenshot({path:OUT+'/loader-50.png'});
+await pg.screenshot({path:OUT+'/loader-fail.png'});for(const f of [0.05,0.35,0.65,0.95]){await pg.evaluate(f=>{document.getElementById('ldtxt').textContent='ЗАГРУЖАЮ МОДЕЛЬ '+Math.round(f*100)+'%';document.getElementById('ldsub').textContent='';document.getElementById('ldRetry').hidden=true;window.__garageLoader(f);},f);await pg.waitForTimeout(700);await pg.screenshot({path:OUT+'/loader-'+Math.round(f*100)+'.png'});}
 mode='go';await pg.evaluate(()=>{document.getElementById('ldRetry').hidden=false;});await pg.locator('#ldRetry').tap();await pg.waitForTimeout(1500);
 await pg.waitForFunction(()=>window.__garageReady&&R9T.ready,null,{timeout:180000});
 ok(await pg.evaluate(()=>R9T.ready),'retry loads the real model');
