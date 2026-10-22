@@ -222,8 +222,8 @@ function renderStep(){const o=E.op;if(!o)return;const i=E.step,s=o.steps[i],z=ZO
    ${s.facts?`<div class="facts">${s.facts.map(f=>`<span class="fact ${f[2]||''}">${esc(f[0])}: ${esc(f[1])}${f[2]==='flag'?' · сверить':''}</span>`).join('')}</div>`:''}
    ${s.w?`<div class="warn">${esc(s.w)}</div>`:''}</div>
    <div class="dots">${o.steps.map((_,k)=>`<i class="${k<=i?'on':''}"></i>`).join('')}</div>
-   <div class="row"><button class="btn" id="sPrev" ${i?'':'disabled'}>Назад</button>${last?'<button class="btn primary" id="sDone">Сделал</button>':'<button class="btn dark" id="sNext">Дальше</button>'}</div>
-   <p class="disc">Совет, не замена сервиса BMW. Сомневаешься, едь в сервис.</p>`;
+   <div class="stepnav"><div class="row"><button class="btn" id="sPrev" ${i?'':'disabled'}>Назад</button>${last?'<button class="btn primary" id="sDone">Сделал</button>':'<button class="btn dark" id="sNext">Дальше</button>'}</div>
+   <p class="disc">Совет, не замена сервиса BMW. Сомневаешься, едь в сервис.</p></div>`;
   const b=sheetKind==='step'?$('sbody'):openSheet('',{kind:'step',size:'low',label:o.t});b.innerHTML=html;b.scrollTop=0;
   b.querySelector('#sPrev').onclick=()=>{E.opStep(i-1);renderStep();};
   const n=b.querySelector('#sNext');if(n)n.onclick=()=>{E.opStep(i+1);renderStep();};
@@ -329,7 +329,7 @@ function renderCabinet(){const el=SCREENS.cabinet,st=S(),b=st.bike,u=tgUser(),pr
   el.innerHTML=`<div class="wrap"><h1>${u&&u.first_name?'Привет, '+esc(u.first_name):'Кабинет'}</h1>
    <h2>Мой байк</h2>
    <div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
-     <div><div class="kicker" style="margin:0 0 4px">BMW R nineT Scrambler</div>
+     <div><div class="kicker" style="margin:0 0 4px;text-transform:none">BMW R nineT Scrambler</div>
       <dl class="kv" style="margin:6px 0 0"><dt>Номер</dt><dd class="pn">${b.plate?esc(b.plate.toUpperCase()):'<span class="muted">нет</span>'}</dd>
       <dt>Цвет</dt><dd><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${esc(b.color)};vertical-align:-2px;border:1px solid var(--line)"></span> ${esc(colorName(b.color))}</dd>
       <dt>Пробег</dt><dd>${b.km!=null?nf(b.km)+' км':'<span class="muted">не указан</span>'}</dd>

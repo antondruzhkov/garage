@@ -310,3 +310,5 @@ mark{background:color-mix(in srgb,var(--hazard) 55%,transparent);color:inherit;b
 @media (prefers-reduced-motion: reduce){.sheet{animation:none}.loader{transition:none}.lamp.b1,.lamp.b2,.lamp.b3,#lsym.b1{animation-duration:2s}}
 .kicker{font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .linkbtn{border:0;background:none;padding:0;color:var(--ink);text-decoration:underline;font-size:inherit;min-height:0}
+.stepnav{position:sticky;bottom:-18px;background:var(--panel);margin:0 -2px -18px;padding:10px 2px 12px;border-top:1px solid var(--line)}
+.stepnav .disc{margin:10px 0 0}
