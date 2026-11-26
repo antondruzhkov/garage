@@ -366,16 +366,16 @@ function catList(){const el=SCREENS.catalog.querySelector('#catl');const q=norm(
   el.innerHTML=head+(Object.keys(by).sort().map(g=>`<div class="cgroup">${g} · ${esc(CGROUPS[g]||'')}</div><ul class="list">${by[g].map(d=>diagHTML(d,q,numQ&&hits.length<=3)).join('')}</ul>`).join('')||'<p class="lead">Ничего не нашлось. Попробуй номер без пробелов или английское название.</p>');
   const a=el.querySelector('#catAll');if(a)a.onclick=()=>{catPart=null;catList();};
   el.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{catOpen=catOpen===b.dataset.d?null:b.dataset.d;catList();});
-  el.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>catShow(b.dataset.show));}
+  el.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>catShow(b.dataset.show,b.dataset.partNumber));}
 function diagHTML(d,q,auto){const open=catOpen===d.id||auto,link=E.CAT.linkOf(d);
   const hl=t=>{if(!q)return esc(t);const n=norm(t);return n.includes(q)?`<mark>${esc(t)}</mark>`:esc(t);};
-  return `<li class="diag"><button data-d="${d.id}" aria-expanded="${open}"><b>${esc(d.t)}</b><span>${d.id} · ${d.r.length} поз.${link?' · есть на 3D':''}</span></button>
-   ${open?`<div class="body"><div class="row">${link?`<button class="btn primary" data-show="${d.id}">Показать на мотоцикле${isPro()?'':' · PRO'}</button>`:'<span class="small muted">Этой детали нет на модели (аксессуар или расходник).</span>'}</div>
-   <table class="cat"><thead><tr><th>№</th><th>Номер BMW</th><th>Деталь</th><th>Шт</th></tr></thead><tbody>${d.r.map(r=>`<tr><td>${esc(r[0])}</td><td class="pn">${hl(r[1])}</td><td>${hl(r[2])}${r[4]?`<small>${esc(r[4])}</small>`:''}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table>
+  return `<li class="diag"><button data-d="${d.id}" aria-expanded="${open}"><b>${esc(d.t)}</b><span>${d.id} · ${d.r.length} поз.${link?' · узел в 3D':' · схема без подсветки'}</span></button>
+   ${open?`<div class="body"><div class="row">${link?`<button class="btn primary" data-show="${d.id}">Показать узел в 3D${isPro()?'':' · PRO'}</button>`:'<span class="small muted">Для этой схемы нет подсветки на модели.</span>'}</div>
+   <table class="cat"><thead><tr><th>№</th><th>Номер BMW</th><th>Деталь</th><th>Шт</th></tr></thead><tbody>${d.r.map(r=>`<tr><td>${esc(r[0])}</td><td class="pn">${hl(r[1])}</td><td>${hl(r[2])}${r[4]?`<small>${esc(r[4])}</small>`:''}${E.CAT.linkOf(d,r[1])?`<button class="btn" data-show="${d.id}" data-part-number="${esc(r[1])}">Подсветить деталь${isPro()?'':' · PRO'}</button>`:''}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table>
    ${d.n&&d.n.length?`<p class="small muted">${d.n.map(esc).join('<br>')}</p>`:''}</div>`:''}</li>`;}
-function catShow(id){const d=CATDATA.find(x=>x.id===id);if(!d)return;if(!isPro()){openPro('cat');return;}
-  setView('garage');closeSheet(true);E.setTab('cat');E.CAT.show(d);document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed','false'));
-  $('catLbl').textContent=`Подсветка: ${d.id} ${d.t}`;$('catPill').hidden=false;$('ctrPill').hidden=true;track('cat_show',{id});syncBack();}
+function catShow(id,number){const d=CATDATA.find(x=>x.id===id);if(!d||!E.CAT.linkOf(d,number))return;if(!isPro()){openPro('cat');return;}
+  setView('garage');closeSheet(true);E.setTab('cat');E.CAT.show(d,number);document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed','false'));
+  $('catLbl').textContent=`Подсветка: ${number||d.id+' '+d.t}`;$('catPill').hidden=false;$('ctrPill').hidden=true;track('cat_show',{id,part:number});syncBack();}
 function catOff(){E.CAT.show(null);setSec(sec);}
 $('catOff').onclick=catOff;
 

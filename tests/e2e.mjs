@@ -40,6 +40,37 @@ async function run(name,ctxOpts,o){
   const t0=Date.now();await pg.goto(BASE+(o.q||''));
   await pg.waitForFunction(()=>window.__garageReady&&window.R9T&&R9T.ready,null,{timeout:180000});
   console.log('  model ready',Date.now()-t0,'ms');
+  const k23=await pg.evaluate(async()=>{
+    const {P,CAT,OPS}=R9T;
+    const tyres=['wheelF','wheelR'].map(id=>{
+      let tyre;
+      P[id].g.traverse(o=>{if(o.userData.sub==='tyre')tyre=o;});
+      return new THREE.Box3().setFromObject(tyre);
+    });
+    const [front,rear]=tyres;
+    const close=(a,b)=>Math.abs(a-b)<0.01;
+    const chassis=close((front.min.x+front.max.x-rear.min.x-rear.max.x)/2,15.27)
+      &&close(front.max.x-front.min.x,6.506)&&close(rear.max.x-rear.min.x,6.358)
+      &&close(front.min.y,rear.min.y)&&!!P.forkBoots;
+    const diagrams=await CAT.load();
+    const ignition=diagrams.find(d=>d.id==='12_1259');
+    const plugs=CAT.linkOf(ignition,'12 12 7 726 112');
+    const spark=OPS.find(o=>o.id==='spark');
+    const ignitionOk=['plug2L','plug2R'].every(id=>id in plugs&&spark.steps.some(s=>s.f.includes(id)&&s.off.includes(id)))
+      &&Object.keys(plugs).length===4&&spark.need[0].startsWith('4 свечи');
+    const spokeWheels=[['wheelF','36_2301','36 31 8 406 050'],['wheelR','36_2300','36 31 8 406 051']];
+    const crossSpokes=spokeWheels.every(([wheel,id,number])=>{
+      let count=0;
+      P[wheel].g.traverse(o=>{if(o.userData.sub==='spoke')count=o.count;});
+      const diagram=diagrams.find(d=>d.id===id);
+      return count===40&&CAT.linkOf(diagram,number)?.[wheel]?.[0]==='spoke';
+    });
+    const cast=diagrams.find(d=>d.id==='36_2298');
+    return {chassis,ignitionOk,catalog:crossSpokes&&CAT.linkOf(cast)===null};
+  });
+  ok(k23.chassis,'K23: wheelbase, stock tyre sizes and fork gaiters');
+  ok(k23.ignitionOk,'K23: four plugs in the catalog and service steps');
+  ok(k23.catalog,'K23: 40 cross spokes per wheel and matching catalog highlights');
   // overflow check: nothing wider than the screen
   const ov=await pg.evaluate(()=>document.documentElement.scrollWidth-innerWidth);ok(ov<=0,'no horizontal overflow');
 
