@@ -66,11 +66,20 @@ async function run(name,ctxOpts,o){
       return count===40&&CAT.linkOf(diagram,number)?.[wheel]?.[0]==='spoke';
     });
     const cast=diagrams.find(d=>d.id==='36_2298');
-    return {chassis,ignitionOk,catalog:crossSpokes&&CAT.linkOf(cast)===null};
+    const camshafts=['camsL','camsR'].every(id=>{
+      let sprockets=0;
+      P[id].g.traverse(o=>{if(o.userData.sub==='camSprocket')sprockets++;});
+      return sprockets===2;
+    });
+    const camDiagram=diagrams.find(d=>d.id==='11_6541');
+    const camSprocketRow=camDiagram.r.find(r=>r[1]==='11 31 7 726 778');
+    return {chassis,ignitionOk,catalog:crossSpokes&&CAT.linkOf(cast)===null,
+      camshafts:camshafts&&camSprocketRow[3]==='4'};
   });
   ok(k23.chassis,'K23: wheelbase, stock tyre sizes and fork gaiters');
   ok(k23.ignitionOk,'K23: four plugs in the catalog and service steps');
   ok(k23.catalog,'K23: 40 cross spokes per wheel and matching catalog highlights');
+  ok(k23.camshafts,'K23: two camshaft sprockets per head');
   // overflow check: nothing wider than the screen
   const ov=await pg.evaluate(()=>document.documentElement.scrollWidth-innerWidth);ok(ov<=0,'no horizontal overflow');
 

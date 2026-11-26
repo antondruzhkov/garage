@@ -465,13 +465,12 @@ mirrorZ(s=>{
   cyl(gPl,1.3,8,'z',[770,430,s*210],'steel',8);
   [-1,1].forEach(k=>box(gPl,[3,1.6,10],[770,430+k*3.4,s*209],'steel'));
   /* internals */
-  const gCam=part('cams'+side,{name:'Газораспределительный механизм, '+nm,desc:'Как у BMW в этом DOHC-моторе: два распредвала на цилиндр лежат вдоль мотоцикла, один над другим, и каждый открывает один впускной и один выпускной клапан. Кулачки давят на лёгкие рычаги (Schlepphebel, «рокеры»): с одной стороны рычаг на оси, с другой давит на клапан через полусферическую шайбу. Зазор регулируют подбором этих шайб. Ход клапана 10,8 мм. Цепь крутит звёздочку на нижнем распредвале, верхний крутится от него через шестерню, оба в два раза медленнее коленвала.',sys:'ГРМ',layer:'internal',ex:[0,0,s*120]});
+  const gCam=part('cams'+side,{name:'Газораспределительный механизм, '+nm,desc:'Как у BMW в этом DOHC-моторе: два распредвала на цилиндр лежат вдоль мотоцикла, один над другим, и каждый открывает один впускной и один выпускной клапан. Кулачки давят на лёгкие рычаги (Schlepphebel, «рокеры»): с одной стороны рычаг на оси, с другой давит на клапан через полусферическую шайбу. Зазор регулируют подбором этих шайб. Профили кулачков и ход клапанов в анимации показаны приблизительно. Цепь крутит звёздочку на нижнем распредвале, верхний крутится от него через шестерню, оба в два раза медленнее коленвала.',sys:'ГРМ',layer:'internal',ex:[0,0,s*120]});
   const cams=[],valves=[],ZC=309;
   const xEnd=s>0?656:884, xg=s>0?680:860;          // chain sprocket and cam-gear planes (cam frame)
   const tag=o=>{o.traverse(q=>{if(q.isMesh)q.userData.part='cams'+side;});return o;};
   const ig=null;
-  /* two camshafts (BMW parts list: camshaft I and II, one sprocket per head). The chain drives the sprocket on the lower camshaft;
-     both camshafts carry spur gears that mesh, so the upper one turns the other way at the same speed. */
+  /* Legacy placeholder geometry, replaced by E2 before rendering. */
   const PK={in:460,ex:270};
   [[1,485],[-1,375]].forEach(([u,cy])=>{const cg=new THREE.Group();cg.position.set(0,cy,s*ZC);gCam.add(cg);
     const x0=u<0?xEnd:xg;add(cg,new THREE.CylinderGeometry(10,10,Math.abs(850-x0)+20,16).rotateZ(Math.PI/2),'steel',[(850+x0)/2,0,0]);
@@ -800,10 +799,8 @@ const gClutch=part('clutch',{name:'Сухое сцепление',desc:'Одно
 lathe(gClutch,[[40,0],[110,0],[110,12],[40,12]],'x',[650,430,0],'steel',48);lathe(gClutch,[[30,0],[96,0],[96,8],[30,8]],'x',[636,430,0],'gold',48);lathe(gClutch,[[30,0],[104,0],[104,8],[30,8]],'x',[626,430,0],'steel',48);
 const gBal=part('balancer',{name:'Балансирный вал',desc:'Вал с противовесом под коленвалом гасит вибрации оппозита. Крутится от коленвала.',sys:SYS.drive,layer:'internal',ex:[0,-60,0]});
 cyl(gBal,12,240,'x',[790,340,0],'steel',16);box(gBal,[50,36,30],[790,322,0],'steel');
-const gChain=part('camchains',{name:'Цепи привода ГРМ',desc:'Привод ГРМ по каталогу деталей BMW для этого мотора: спереди короткая цепь от коленвала на промежуточный вал под ним. От промежуточного вала к каждой головке своя втулочная цепь: правая сзади, левая спереди. Цепь крутит звёздочку на нижнем распредвале, а он через шестерню крутит верхний. Распредвалы вращаются в два раза медленнее коленвала. На каждой цепи гидравлический натяжитель и направляющая шина: подтягивать вручную ничего не надо.',sys:SYS.drive,layer:'internal',ex:[0,0,0]});
-/* timing drive (BMW parts lists for this engine): a single chain from the crankshaft to the intermediate shaft under it (front),
-   then one sleeve chain per cylinder from the intermediate shaft up to the sprocket on the lower camshaft:
-   right cylinder chain at the rear, left cylinder chain at the front. Each chain has a hydraulic tensioner rail and a guide rail. */
+const gChain=part('camchains',{name:'Цепи привода ГРМ',desc:'Привод ГРМ по каталогу деталей BMW для этого мотора: спереди короткая цепь от коленвала на промежуточный вал под ним. От промежуточного вала к каждой головке своя втулочная цепь: правая сзади, левая спереди. Одна цепь каждой головки охватывает звёздочки верхнего и нижнего распредвалов. Распредвалы вращаются в два раза медленнее коленвала. На каждой цепи гидравлический натяжитель и направляющая шина: подтягивать вручную ничего не надо.',sys:SYS.drive,layer:'internal',ex:[0,0,0]});
+/* Legacy placeholder for the timing drive, replaced by E2 before rendering. */
 const CHAINS=[];const IY=292;
 {const g=new THREE.Group();g.name='ishaft';g.position.set(0,IY,0);gChain.add(g);add(g,new THREE.CylinderGeometry(9,9,360,14).rotateZ(Math.PI/2),'steel',[800,0,0]);
  [[970,20],[656,20],[938,20]].forEach(([x,r])=>{const q=gearGeo0(r-2,16);q.rotateZ(Math.PI/2);add(g,q,'satin',[x,0,0]);});
@@ -944,7 +941,7 @@ OFFS.drainplug=ENG.map((v,i)=>v+[0,-72,0][i]);
    11_4216 oil pump / intermediate shaft, 11_4267 cam chains, 11_6541 camshaft, 11_4294 rockers/valves) and fitted to the
    scanned engine (cylinder axes from the scanned valve covers). World coordinates, mm.
    Kinematic chain: crankshaft (Z24) -> primary chain -> intermediate shaft (Z48, half speed, drives oil pump)
-   -> two cam chains (Z22/Z22) -> lower camshaft of each head -> spur gears 1:1 -> upper camshaft.
+   -> one chain per head runs around both camshaft sprockets. See BMW cutaways P90048406 and P90048407.
    Each camshaft: one intake + one exhaust lobe; lobe -> finger rocker (own shaft) -> semi-sphere shim -> valve. */
 const E2=(function(){
 const AX={R:{x:891,s:1},L:{x:943,s:-1}}, CY=454, STROKE=73, CR_R=STROKE/2, ROD=125, CH=30;
@@ -952,7 +949,7 @@ const PITCH=8, VL=10.8, Z_VFACE=193.5, Z_TIP=267.5, Z_PIV=277, RB=14, CAM_Z=295.
 const VALVES=[['in',-24,19.5],['ex',25,16.5]]; // kind, dx from bore axis at the valve seat, head radius
 const VT=8*Math.PI/180, TX=(dx)=>dx+Math.sign(dx)*(Z_TIP-Z_VFACE)*Math.sin(VT); // valves lean apart like a pent roof: tip x offset
 const PK={in:460,ex:270}, WIN=220; // crank degrees: lift peak and duration
-const CHLOW=34, IY=350, X_PRIM=1035, chX=s=>s>0?961:1013;
+const CAM_TEETH=20, CHLOW=34, IY=350, X_PRIM=1035, chX=s=>s>0?961:1013;
 const REBUILT=['crank','pistonR','pistonL','camsR','camsL','camchains','oilpump','balancer'];
 const NEW=[];
 
@@ -967,13 +964,12 @@ function hull(pts){pts=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o
   pts.forEach(p=>{while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);});
   pts.slice().reverse().forEach(p=>{while(up.length>1&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p);});return lo.slice(0,-1).concat(up.slice(0,-1));}
 // sprocket: Z teeth on pitch radius for an 8 mm chain; optional spokes
-function sprocketGeo(Z,t,spokes){const rp=Z*PITCH/(2*Math.PI),pts=[];const N=Z*12;
-  for(let i=0;i<N;i++){const th=i/N*Math.PI*2,r=rp+0.4-3.2*Math.cos(Z*th);pts.push([r*Math.cos(th),r*Math.sin(th)]);}
+function sprocketGeo(Z,t,spokes,toothDepth=3.2){const rp=Z*PITCH/(2*Math.PI),pts=[];const N=Z*12;
+  for(let i=0;i<N;i++){const th=i/N*Math.PI*2,r=rp+0.4-toothDepth*Math.cos(Z*th);pts.push([r*Math.cos(th),r*Math.sin(th)]);}
   const holes=[];if(spokes){const ri=rp*0.32,ro=rp-9;for(let k=0;k<spokes;k++){const a0=k/spokes*Math.PI*2+0.32,a1=(k+1)/spokes*Math.PI*2-0.32,h=[];
       for(let i=0;i<=10;i++){const a=a0+(a1-a0)*i/10;h.push([ro*Math.cos(a),ro*Math.sin(a)]);}for(let i=10;i>=0;i--){const a=a0+(a1-a0)*i/10;h.push([ri*Math.cos(a),ri*Math.sin(a)]);}holes.push(h.reverse());}}
   holes.push(circ(0,0,spokes?rp*.14:Math.min(9,rp*.3),24,true));
   return {g:prismYZ(pts,holes,t),rp};}
-function gearGeo2(rp,Z,t){return invGear(Z,2*rp/Z,t,{bore:rp*.35});}   /* involute spur gear, see invGear */
 function reg(g,id,o){o.traverse(m=>{if(m.isMesh){m.userData.part=id;pickables.push(m);}});g.add(o);return o;}
 function M(k,geo,pos){const m=new THREE.Mesh(geo,mat(k,true));if(pos)m.position.set(...pos);return m;}
 
@@ -1034,18 +1030,21 @@ const pistons={};
 /* ================= cylinder-head valvetrain ================= */
 const heads={};
 ['R','L'].forEach(k=>{const {x:cx,s}=AX[k];const id='cams'+k,g=P[id].g;
-  P[id].desc='Клапаны стоят шатром: впускные наклонены назад, выпускные вперёд, поэтому стержни расходятся от поршня к распредвалам. Газораспределение по каталогу BMW: два распредвала (вал I и вал II) лежат вдоль мотоцикла, один над другим, каждый открывает один впускной (сзади) и один выпускной (спереди) клапан. На нижнем валу звёздочка цепи и кольцо датчика распредвала, верхний крутится от нижнего через шестерни 1:1, в два раза медленнее коленвала. Кулачок давит на рокер (у каждого клапана свой рокер на своей оси в корпусе распредвалов), рокер через полусферическую шайбу давит на клапан. Зазор меряют щупом между кулачком и рокером. Ход клапана 10,8 мм.';
+  P[id].desc='Клапаны стоят шатром: впускные наклонены назад, выпускные вперёд, поэтому стержни расходятся от поршня к распредвалам. Газораспределение по каталогу BMW: два распредвала (вал I и вал II) лежат вдоль мотоцикла, один над другим, каждый открывает один впускной (сзади) и один выпускной (спереди) клапан. Одна цепь огибает звёздочки обоих распредвалов головки. Валы вращаются в одном направлении с половиной скорости коленвала. Кулачок давит на рокер (у каждого клапана свой рокер на своей оси в корпусе распредвалов), рокер через полусферическую шайбу давит на клапан. Зазор меряют щупом между кулачком и рокером. Профили кулачков и ход клапанов в анимации показаны приблизительно.';
   const H={s,cx,cams:[],valves:[]};
   [1,-1].forEach(u=>{const cg=new THREE.Group();cg.position.set(0,CY+u*CAM_DY,s*CAM_Z);g.add(cg);
     const xs=chX(s);
     cg.add(M('steel',new THREE.CylinderGeometry(10,10,xs-(cx-60),20).rotateZ(Math.PI/2),[(xs+cx-60)/2,0,0]));
     [cx-50,cx,cx+46].forEach(xj=>cg.add(M('chrome',new THREE.CylinderGeometry(12,12,10,24).rotateZ(Math.PI/2),[xj,0,0])));
-    cg.add(M('brass',gearGeo2(CAM_DY,28,8),[xs-14,0,0]));
-    if(u<0){const sp=sprocketGeo(22,7);cg.add(M('steel',sp.g,[xs,0,0]));
-      const rr=prismYZ(circ(0,0,24,40).filter(([y,z])=>y>-4),null,3);cg.add(M('black',rr,[xs+7,0,0]));}  // camshaft sensor reluctor
+    const sprocket=M('steel',sprocketGeo(CAM_TEETH,7,0,2.9).g,[xs,0,0]);
+    sprocket.userData.sub='camSprocket';cg.add(sprocket);
+    if(u<0){
+      const rr=prismYZ(circ(0,0,24,40).filter(([y,z])=>y>-4),null,3);
+      cg.add(M('black',rr,[xs+7,0,0]));
+    }
     VALVES.forEach(([kind,dx])=>{const pts=[];for(let i=0;i<120;i++){const th=i/120*Math.PI*2;let d=th*180/Math.PI;if(d>180)d-=360;const cd=d;
         const r=RB+(Math.abs(cd)<WIN/4?(VL/2)*Math.cos(Math.PI*cd/(WIN/2)):0);pts.push([r*Math.cos(th),r*Math.sin(th)]);}
-      const lob=new THREE.Group();lob.position.x=cx+TX(dx);lob.rotation.x=-s*Math.PI/2-u*PK[kind]/2*Math.PI/180;cg.add(lob);
+      const lob=new THREE.Group();lob.position.x=cx+TX(dx);lob.rotation.x=-s*Math.PI/2+PK[kind]*Math.PI/360;cg.add(lob);
       lob.add(M('steel',prismYZ(pts,null,10)));});
     reg(g,id,cg);H.cams.push({g:cg,u});});
   /* camshaft supporting bracket (carrier): bridges across both shafts */
@@ -1074,13 +1073,13 @@ const heads={};
 
 /* ================= timing chains ================= */
 const gT=P.camchains.g;
-P.camchains.desc='Привод ГРМ спереди мотора под крышкой цепей (BMW 11_4277, 11_4267): у каждой цепи светлая натяжная планка на оси, её поджимает гидравлический натяжитель, вкрученный снаружи, а с другой стороны цепь идёт по рёбристой успокоительной планке. звёздочка коленвала Z24 через короткую цепь крутит большую звёздочку Z48 на промежуточном валу под коленвалом, поэтому он вращается в два раза медленнее. От промежуточного вала две цепи идут вверх к головкам и крутят нижние распредвалы (звёздочки Z22 и Z22). На каждой цепи гидравлический натяжитель с подвижным башмаком и неподвижная направляющая. Натягивать вручную ничего не нужно.';
-/* chain path around two sprockets. Each straight run can be bowed inward by a curved rail (bow1 on the c1->c2 run, bow2 on the
-   c2->c1 run, mm): the chain leaves the sprocket a little further round and follows a smooth curve (cubic Bezier) to the other one,
-   like it does on the curved sliding face of the BMW guide and tensioner rails. */
-function beltPath(c1,r1,c2,r2,bow1,bow2){const dy=c2[0]-c1[0],dz=c2[1]-c1[1],d=Math.hypot(dy,dz),ph=Math.atan2(dz,dy),b=Math.asin((r1-r2)/d);
+P.camchains.desc='Короткая цепь передаёт вращение от коленвала промежуточному валу. От него к каждой головке идёт своя цепь, которая огибает две звёздочки распредвалов. Направляющие удерживают цепь, а гидравлический натяжитель выбирает её слабину. Трасса и размеры звёздочек в 3D показаны приблизительно (BMW 11_4277, 11_4267, 11_6541).';
+function beltPath(c1,r1,c2,r2,bow1,bow2){
+  return loopPath([[c1,r1],[c2,r2]],[bow1||0,bow2||0]);
+}
+/* Sprockets in clockwise order in the YZ plane. The bowed runs follow the guide rails. */
+function loopPath(wheels,bows){
   const e=a=>[Math.cos(a),Math.sin(a)],P=(c,r,a)=>[c[0]+r*Math.cos(a),c[1]+r*Math.sin(a)];
-  const a1=ph+Math.PI/2+b,a2=ph-Math.PI/2-b;
   function run(cA,rA,cB,rB,al,bow){const p=P(cA,rA,al),q=P(cB,rB,al),L=Math.hypot(q[0]-p[0],q[1]-p[1]),u=[(q[0]-p[0])/L,(q[1]-p[1])/L],n=e(al);
     if(!bow)return {aA:al,aB:al,pts:[p,q],nrm:n};
     const s=(-u[1]*n[0]+u[0]*n[1])<0?1:-1,dl=Math.asin(Math.min(.5,4*bow/L));
@@ -1089,9 +1088,19 @@ function beltPath(c1,r1,c2,r2,bow1,bow2){const dy=c2[0]-c1[0],dz=c2[1]-c1[1],d=M
     const p1=[p0[0]+tA[0]*L/3,p0[1]+tA[1]*L/3],p2=[p3[0]-tB[0]*L/3,p3[1]-tB[1]*L/3],pts=[];
     for(let i=0;i<=60;i++){const t=i/60,m=1-t;pts.push([m*m*m*p0[0]+3*m*m*t*p1[0]+3*m*t*t*p2[0]+t*t*t*p3[0],m*m*m*p0[1]+3*m*m*t*p1[1]+3*m*t*t*p2[1]+t*t*t*p3[1]]);}
     return {aA,aB,pts,nrm:n};}
-  const R1=run(c1,r1,c2,r2,a1,bow1||0),R2=run(c2,r2,c1,r1,a2,bow2||0);
-  const arc=(c,r,f,t)=>{const k=Math.max(2,Math.ceil(Math.abs(t-f)*r/1.5)),o=[];for(let i=0;i<=k;i++)o.push(P(c,r,f+(t-f)*i/k));return o;};
-  const poly=[].concat(R1.pts,arc(c2,r2,R1.aB,R2.aA).slice(1),R2.pts.slice(1),arc(c1,r1,R2.aB,R1.aA-2*Math.PI).slice(1,-1));
+  const runs=wheels.map(([c,r],i)=>{
+    const [next,nextR]=wheels[(i+1)%wheels.length],dy=next[0]-c[0],dz=next[1]-c[1];
+    const angle=Math.atan2(dz,dy)+Math.PI/2+Math.asin((r-nextR)/Math.hypot(dy,dz));
+    return run(c,r,next,nextR,angle,bows[i]||0);
+  });
+  const poly=[];
+  for(let i=0;i<wheels.length;i++){
+    const [c,r]=wheels[i],current=runs[i],previous=runs[(i+wheels.length-1)%wheels.length];
+    const turn=((previous.aB-current.aA)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+    const n=Math.max(2,Math.ceil(turn*r/1.5));
+    for(let j=0;j<n;j++)poly.push(P(c,r,previous.aB-turn*j/n));
+    poly.push(...current.pts.slice(0,-1));
+  }
   const cum=[0];for(let i=1;i<=poly.length;i++){const A=poly[i-1],B=poly[i%poly.length];cum.push(cum[i-1]+Math.hypot(B[0]-A[0],B[1]-A[1]));}
   const len=cum[cum.length-1];
   const at=(s)=>{s=((s%len)+len)%len;let lo=0,hi=poly.length;while(hi-lo>1){const m=(lo+hi)>>1;if(cum[m]<=s)lo=m;else hi=m;}
@@ -1100,15 +1109,17 @@ function beltPath(c1,r1,c2,r2,bow1,bow2){const dy=c2[0]-c1[0],dz=c2[1]-c1[1],d=M
   const runAt=(R,f,dd)=>{const N=R.pts.length-1,x=Math.min(N-1e-6,Math.max(0,f*N)),i=Math.floor(x),g=x-i,A=R.pts[i],B=R.pts[Math.min(N,i+1)];
     let ty=B[0]-A[0],tz=B[1]-A[1];const l=Math.hypot(ty,tz)||1;ty/=l;tz/=l;let ny=-tz,nz=ty;if(ny*R.nrm[0]+nz*R.nrm[1]<0){ny=-ny;nz=-nz;}
     return [A[0]+(B[0]-A[0])*g+ny*dd,A[1]+(B[1]-A[1])*g+nz*dd,ny,nz];};
-  return {len,at,runs:[R1,R2],runAt,n1:e(a1),n2:e(a2)};}
+  return {len,at,runs,runAt};}
 const CHAINS=[];
-function chain(x,c1,Z1,c2,Z2,speed,tens,bows){const r1=Z1*PITCH/(2*Math.PI),r2=Z2*PITCH/(2*Math.PI);const bp=beltPath(c1,r1,c2,r2,...(bows||[0,0]));
+function chain(x,centres,teeth,speed,tensionRun,bows){
+  const wheels=centres.map((c,i)=>[c,teeth[i]*PITCH/(2*Math.PI)]);
+  const bp=loopPath(wheels,bows),r1=wheels[0][1];
   const n=Math.round(bp.len/PITCH),pitch=bp.len/n;
   const plate=new THREE.InstancedMesh(new THREE.BoxGeometry(11,5.2,pitch*1.08),mat('steel'),n),roll=new THREE.InstancedMesh(new THREE.CylinderGeometry(2.6,2.6,8,8).rotateZ(Math.PI/2),mat('satin'),n);
   [plate,roll].forEach(m=>{m.userData.part='camchains';gT.add(m);pickables.push(m);});
   /* rails along both straight runs (BMW 11_4277): tensioner rail on one run, pivoting at its end and pressed by the hydraulic
      tensioner screwed in from outside; ribbed guide rail on the other run */
-  [[bp.runs[0],tens],[bp.runs[1],!tens]].forEach(([R,isT])=>{const N=24,A=[],B=[];
+  bp.runs.forEach((R,index)=>{const isT=index===tensionRun,N=24,A=[],B=[];
     const P=(f,d)=>bp.runAt(R,f,d);
     for(let i=0;i<=N;i++){const f=0.1+0.8*i/N,b=1-Math.pow(2*(f-0.5)/0.8,2);
       A.push(P(f,3.6));B.push(P(f,isT?9.5+5*b:9+(i%3===0?5.5:2)));}
@@ -1127,7 +1138,7 @@ function chain(x,c1,Z1,c2,Z2,speed,tens,bows){const r1=Z1*PITCH/(2*Math.PI),r2=Z
 const ish=new THREE.Group();ish.position.set(0,IY,0);gT.add(ish);
 {ish.add(M('steel',(()=>{const l=new THREE.LatheGeometry([[10.5,760],[13,760],[13,1045],[10.5,1045],[10.5,760]].map(p=>new THREE.Vector2(p[0],p[1])),24);l.rotateZ(-Math.PI/2);return l;})()));   /* hollow: the balance shaft runs inside */
   const big=sprocketGeo(48,6,4);ish.add(M('satin',big.g,[X_PRIM,0,0]));
-  [chX(1),chX(-1)].forEach(xx=>{const s22=sprocketGeo(22,7);ish.add(M('steel',s22.g,[xx,0,0]));});
+  [chX(1),chX(-1)].forEach(xx=>ish.add(M('steel',sprocketGeo(CAM_TEETH,7,0,2.9).g,[xx,0,0])));
   ish.traverse(m=>{if(m.isMesh){m.userData.part='camchains';pickables.push(m);}});}
 /* balance shaft (BMW 11_4209; layout per the BMW R 1200 press kit: the shaft runs inside the hollow intermediate shaft on rolling
    bearings, a spur gear from the crank drives it 1:1, so it turns at crank speed the other way; two weights 180° apart: the front one is
@@ -1196,11 +1207,13 @@ const BELT=(function(){
       _b.position.set(XB,y-_n.y*.9,z-_n.z*.9);_b.updateMatrix();rib.setMatrixAt(i,_b.matrix);}
     seg.instanceMatrix.needsUpdate=true;rib.instanceMatrix.needsUpdate=true;}
   set(0);return {set,AY,XB};})();
-const PRIM=chain(X_PRIM,[CY,0],24,[IY,0],48,1,true);
-/* the lower run of each cam chain is pulled up by the curved rail so that the chain and rail stay inside the cylinder (its underside
-   in the scan is at y 370-380 in the chain plane); the upper run is only slightly curved. First number: run c1->c2 (lower on the right
-   cylinder, upper on the left), second: the other run. */
-const CAMCH={R:chain(chX(1),[IY,0],22,[CY-CAM_DY,CAM_Z],22,.5,false,[CHLOW,6]),L:chain(chX(-1),[IY,0],22,[CY-CAM_DY,-CAM_Z],22,.5,true,[6,CHLOW])};
+chain(X_PRIM,[[CY,0],[IY,0]],[24,48],1,0,[]);
+for(const side of [1,-1]){
+  const upper=[CY+CAM_DY,side*CAM_Z],lower=[CY-CAM_DY,side*CAM_Z];
+  const cams=side>0?[lower,upper]:[upper,lower];
+  chain(chX(side),[[IY,0],...cams],[CAM_TEETH,CAM_TEETH,CAM_TEETH],0.5,
+    side>0?2:0,side>0?[CHLOW,0,6]:[6,0,CHLOW]);
+}
 /* oil pump: twin gerotor at the rear end of the intermediate shaft (BMW 11_4216) */
 const gP=P.oilpump.g;P.oilpump.desc='Масляный насос: два героторных насоса (внутренний ротор и наружное кольцо) на заднем конце промежуточного вала, вращаются вдвое медленнее коленвала. Один качает масло под давлением к подшипникам и головкам, второй откачивает. Заборник из поддона снизу.';
 const rotors=[];
@@ -1217,8 +1230,8 @@ gP.traverse(m=>{if(m.isMesh){m.userData.part='oilpump';pickables.push(m);}});
 const _o=new THREE.Object3D(),DEG=Math.PI/180;
 function bump(ph,a,b){ph=((ph%720)+720)%720;if(ph<a||ph>b)return 0;return Math.sin(Math.PI*(ph-a)/(b-a));}
 function lift(kind,ph){const pk=PK[kind];return bump(ph,pk-WIN/2,pk+WIN/2)*VL;}
-function setChains(th){CHAINS.forEach(c=>{const off=th*DEG*c.speed*(c===PRIM?c.r1:c.r1*1);
-    for(let i=0;i<c.n;i++){const [y,z,ty,tz]=c.bp.at(i*c.pitch+off*(c===PRIM?1:1));_o.position.set(c.x,y,z);_o.quaternion.setFromUnitVectors(new V3(0,0,1),new V3(0,ty,tz));_o.updateMatrix();
+function setChains(th){CHAINS.forEach(c=>{const off=th*DEG*c.speed*c.r1;
+    for(let i=0;i<c.n;i++){const [y,z,ty,tz]=c.bp.at(i*c.pitch+off);_o.position.set(c.x,y,z);_o.quaternion.setFromUnitVectors(new V3(0,0,1),new V3(0,ty,tz));_o.updateMatrix();
       c.plate.setMatrixAt(i,_o.matrix);c.roll.setMatrixAt(i,_o.matrix);}
     c.plate.instanceMatrix.needsUpdate=true;c.roll.instanceMatrix.needsUpdate=true;});}
 function set(theta,fire){crank.rotation.x=-theta*DEG;ish.rotation.x=-theta*DEG/2;BAL.set(theta);BELT.set(theta);
@@ -1229,7 +1242,7 @@ function set(theta,fire){crank.rotation.x=-theta*DEG;ish.rotation.x=-theta*DEG/2
     p.pg.position.set(p.x,CY,wz);p.rod.position.set(p.x,CY+py,pz);
     const d=new V3(0,-py,wz-pz).normalize();p.rod.quaternion.setFromUnitVectors(new V3(0,1,0),d);
     const ph=theta+(k==='L'?360:0),H=heads[k];
-    H.cams.forEach(c=>c.g.rotation.x=c.u*ph/2*DEG);
+    H.cams.forEach(c=>c.g.rotation.x=-ph/2*DEG);
     H.valves.forEach(v=>{const L=lift(v.kind,ph);v.vg.position.z=-s*L;v.piv.rotation.x=v.u*s*L/(PIV_DY-TIP_DY);v.spr.scale.z=(v.spr.userData.L-L)/v.spr.userData.L;});
     const q=((ph%720)+720)%720,fl=fire?(q<25?1-q/25:(q>705?1:0)):0;p.spark.material.opacity=fl*.9;p.spark.scale.setScalar(.6+fl*.8);});}
 set(0,false);
@@ -1537,14 +1550,8 @@ function goView(v,instant){const V=VIEWS[v];if(!V)return;document.getElementById
 
 /* ---------- engine animation state ---------- */
 let theta=0, speed=1, playing=true, gear=0, cutaway=false, xray=false, cutPlane=false;
-function bump(ph,a,b){ph=((ph%720)+720)%720;if(ph<a||ph>b)return 0;return Math.sin(Math.PI*(ph-a)/(b-a));}
 const STROKES=['Рабочий ход','Выпуск','Впуск','Сжатие'];
 function strokeOf(ph){ph=((ph%720)+720)%720;return Math.floor(ph/180);}
-/* cams turn at half crank speed: the chain turns the lower camshaft the same way as the crank, its spur gear turns the upper one the other way.
-   Valve lift 10,8 mm (BMW data for this DOHC head). */
-function setValvetrain(c,ph){const s=c.s,cr=(ph/2)*Math.PI/180;
-  c.cams.forEach(cm=>cm.g.rotation.x=cm.u*cr);
-  c.valves.forEach(v=>{const lift=(v.kind==='ex'?bump(ph,160,380):bump(ph,340,580))*10.8;v.g.position.z=-s*lift;v.piv.rotation.x=v.u*s*lift/47;});}
 function updateEngine(){
   E2.set(theta,true);const drv=CLU.set(theta,FADEDT||0.016);
   GBX.set(-drv*Math.PI/180,gear,FADEDT||0.016);
@@ -1730,7 +1737,7 @@ const OPS=[
    {h:'Двигатель полностью холодный',v:'engine',f:['headR','headL'],x:'Зазоры меряют только на остывшем двигателе, лучше утром после ночи. На тёплом металл расширен, цифры будут неправильные.'},
    {h:'Сними катушки и свечи',v:'headR',f:['coilR','plugR','coilL','plugL'],off:['coilR','plugR','coilL','plugL'],x:'Как в работе «Замена свечей»: разъём, катушка, продуть колодец, свеча. Без свечей нет компрессии, и двигатель легко провернуть колесом.'},
    {h:'Сними правую крышку клапанов',v:'headR',f:['coverR'],off:['coilR','plugR','coilL','plugL','coverR'],x:'Выкрути болты крышки по кругу, по пол-оборота каждый, чтобы её не перекосило. Сними крышку прямо на себя. Прилипла: постучи ладонью по краю, отвёрткой не поддевай, поцарапаешь плоскость. С внутренней стороны резиновая прокладка, её меняешь на новую.',facts:[['Болты','M6, Torx'],['Прокладка','новая']]},
-   {h:'Что внутри головки',v:'headOpen',f:['camsR'],off:['coilR','plugR','coilL','plugL','coverR'],x:'Два распредвала лежат вдоль мотоцикла, один над другим. Верхний открывает два верхних клапана, нижний два нижних. На каждом валу два кулачка: задний для впуска, передний для выпуска. Кулачок давит на рокер (рычаг на оси), рокер давит на клапан. На нижнем валу звёздочка цепи, верхний крутится от нижнего через шестерню. Крышки подшипников на болтах не трогаешь.'},
+   {h:'Что внутри головки',v:'headOpen',f:['camsR'],show:['camchains'],off:['coilR','plugR','coilL','plugL','coverR'],x:'Два распредвала лежат вдоль мотоцикла, один над другим. Верхний открывает два верхних клапана, нижний два нижних. На каждом валу два кулачка: задний для впуска, передний для выпуска. Кулачок давит на рокер (рычаг на оси), рокер давит на клапан. Одна цепь в головке охватывает звёздочки обоих распредвалов. Поэтому верхний и нижний валы вращаются в одну сторону. Крышки подшипников на болтах не трогаешь.'},
    {h:'Поставь цилиндр в ВМТ сжатия',v:'headOpen',f:['camsR','wheelR'],off:['coilR','plugR','coilL','plugL','coverR'],anim:'tdc',x:'Включи 5-ю передачу. Медленно крути заднее колесо рукой по ходу движения: распредвалы поворачиваются. Остановись, когда все четыре кулачка правого цилиндра смотрят носами от рокеров. Тогда все четыре клапана закрыты и между круглой частью кулачка и рокером есть щель.',w:'Крути только по ходу движения, назад не надо.'},
    {h:'Меряй щупом каждый клапан',v:'gapView',xray:true,f:['toolFeelerR'],off:['coilR','plugR','coilL','plugL','coverR'],show:['toolFeelerR'],anim:'feel',x:'Щуп заводишь сбоку, плоско, в щель между круглой частью кулачка и площадкой рокера. Подбирай толщину: щуп входит с лёгким сопротивлением, как лист бумаги под книгой. Болтается: бери толще. Не лезет: тоньше. Запиши, какой лезет, для всех четырёх клапанов: впуск верхний и нижний, выпуск верхний и нижний.',facts:[['Впуск, сзади','0,10-0,17 мм','flag'],['Выпуск, спереди','0,34-0,41 мм','flag']]},
    {h:'Проверка «проходит / не проходит»',v:'gapView',xray:true,f:['toolFeelerR'],off:['coilR','plugR','coilL','plugL','coverR'],show:['toolFeelerR'],anim:'feel',x:'Самый надёжный способ для первого раза. Впуск: щуп 0,10 должен проходить, щуп 0,17 уже не должен. Выпуск: 0,34 проходит, 0,41 нет. Если так, клапан в допуске.',w:'Если хоть один зазор вне допуска, регулировка идёт заменой регулировочных шайб со снятием распредвалов. Это следующий уровень: запиши цифры и разберём отдельно.'},
@@ -2028,6 +2035,7 @@ function setTargets(){altCoils();
       if(/^piston|^crank$/.test(p.id))t.op=0;
       if(curOp){const s=curOp.steps[curStep];
         const keep=curOp.keep.indexOf(p.id)>=0||s.f.indexOf(p.id)>=0;
+        if(p.layer==='internal'&&(s.show||[]).includes(p.id))t.op=1;
         if((p.hid&&keep)||(/^plug2[LR]$/.test(p.id)&&s.f.includes(p.id)))t.op=1;
         if((p.scan||p.shell)&&s.f.indexOf(p.id)<0&&s.f.some(id=>P[id]&&P[id].hid&&!/^(conn|coil|cap)/.test(id)))t.op=Math.min(t.op,0.3);
         if(ghost&&!keep)t.op=0.1;
@@ -2285,8 +2293,9 @@ const GROUPS={'02':'Сервис и жидкости','11':'Двигатель',
 let DATA=null,cur=null,q='',open=null;setTimeout(()=>load(),3000);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* Diagram links show an assembly for orientation. Item links select its own geometry. */
-const LINK={"02_0112":"oilfilter drainplug filler sightglass","02_0117":"fork","02_0146":"brakeF brakeR","02_0411":"filler sightglass","11_2806":"pistonR:rod pistonL:rod","11_3595":"cylR cylL","11_3669":"crank","11_4200":"crankcase sightglass","11_4202":"pistonR:piston pistonL:piston","11_4206":"breather","11_4209":"balancer","11_4215":"oilfilter drainplug","11_4216":"oilpump","11_4218":"crankcase","11_4267":"camchains","11_4277":"camchains","11_4289":"coverR coverL","11_4292":"headR headL","11_4293":"headR headL","11_4294":"camsR:valve camsL:valve","11_4432":"beltcover","11_4566":"crankcase cylR cylL headR headL crank pistonR pistonL","11_4589":"crankcase cylR cylL headR headL coverR coverL beltcover crank pistonR pistonL camsR camsL camchains balancer oilpump","11_5104":"crankcase","11_6541":"camsR:cam camsL:cam","11_7101":"coverR coverL","12_1259":"plugR plugL plug2R plug2L coilR coilL coil2R coil2L","12_2110":"starter","12_2111":"alternator belt","12_2129":"harness","12_2359":"sensors","12_2365":"sensors","12_2366":"iat","12_2368":"sensors","12_2412":"sensors","12_2413":"sensors","13_1118":"airbox airfilter intakeDuct","13_1391":"throttle","13_1516":"fuelLine","13_1705":"ecu","13_1876":"throttle","13_1979":"ecu","16_0907":"fuelCap","16_0909":"tank","16_1098":"canister","16_1099":"fuelPump","16_1121":"tank","17_0730":"cooler oilLines","18_0529":"headers collector lambda","18_1206":"flap","18_1870":"silencers","21_0195":"clutch","21_0307":"clutchSlave","23_0964":"shiftLink","23_1108":"gears","23_1109":"shiftMech","23_1110":"shiftMech","23_1114":"gearbox","23_1115":"gearbox gears shiftMech","23_1120":"gearbox","31_1297":"fork forkBoots","31_1302":"fork forkBoots","31_1303":"fork","31_1304":"triple","32_2466":"triple","32_2481":"bars","32_2483":"bars throttle","32_2498":"resF","32_2499":"clutchMaster","32_2701":"bars","32_2752":"bars","32_2753":"bars","32_2754":"bars","33_1226":"swingarm pivots","33_1622":"finaldrive fdgear fdfill fddrain","33_1626":"finaldrive fdgear","33_1627":"finaldrive fdgear","33_1651":"driveshaft","33_1873":"strut","33_2050":"shock","34_1393":"brakeR","34_1994":"resF resR","34_2092":"abs","34_2427":"brakeF","34_2434":"rearMaster resR","34_2437":"brakeLines","34_2438":"brakeLines","35_0478":"rearMaster","36_2300":"wheelR","36_2301":"wheelF","46_1535":"frame","46_1553":"throttle","46_1554":"frame seat","46_1556":"tail","46_1829":"airbox","46_1889":"frame","46_1891":"frame","46_1892":"standSwitch","46_1894":"fender","46_1901":"instrument","46_1902":"bars","46_1903":"pegs","46_2027":"pegs","46_2028":"pegs","46_2062":"pegs","51_0602":"bars","51_3316":"bars","51_3485":"bars","51_4053":"bars","51_4093":"fender","51_9980":"fender","52_4240":"seat","61_1998":"harness","61_2484":"harness","61_2485":"harness","61_3019":"diag","61_3065":"horn","61_3273":"harness loom underseat","61_3642":"standSwitch","61_3928":"battery","61_5083":"underseat","61_5196":"underseat","61_5331":"underseat","61_5658":"standSwitch","61_5758":"underseat relays","61_5852":"harness","61_5853":"harness","61_5909":"harness","61_5912":"diag","61_5935":"relays","61_6046":"rearMaster","61_6232":"harness","61_6289":"harness","61_6469":"harness","61_6470":"harness","61_6475":"harness","61_6476":"harness","61_6638":"diag","61_7021":"bars","61_7041":"bars","61_7044":"bars","61_7057":"bars","61_7058":"bars","61_7797":"harness","62_0636":"instrument","62_0642":"instrument","62_0644":"instrument","63_1582":"light","63_1756":"tail","63_1823":"light","63_1824":"tail","63_1827":"tail","63_2131":"light","63_2252":"light","63_2253":"light","63_2308":"tail","65_3038":"underseat","65_3230":"underseat","77_0029":"filler","77_0350":"coverR coverL","77_0351":"coverR coverL","77_0599":"bars","77_0659":"bars","77_0661":"light","77_0781":"tank","77_0835":"headers","77_0836":"coverR coverL","77_0837":"cooler","77_0842":"bars","77_0843":"bars resF clutchMaster","77_0844":"pegs","77_0845":"throttle","77_0847":"bars","77_0850":"seat","77_0851":"seat","77_0852":"seat","77_0855":"coverR coverL","77_0859":"silencers","77_0867":"pegs","77_0869":"silencers","77_0870":"silencers","77_0879":"silencers","77_0880":"instrument","77_0882":"instrument","77_0886":"airbox","77_0887":"underseat","77_0912":"coverR coverL","77_0913":"coverR coverL","77_0969":"fender","77_0978":"bars","77_0984":"airbox","77_1009":"instrument","77_1030":"light","77_1193":"beltcover","77_1306":"pegs","77_1344":"resF clutchMaster","77_0885":"triple","77_0857":"tank"};
+const LINK={"02_0112":"oilfilter drainplug filler sightglass","02_0117":"fork","02_0146":"brakeF brakeR","02_0411":"filler sightglass","11_2806":"pistonR:rod pistonL:rod","11_3595":"cylR cylL","11_3669":"crank","11_4200":"crankcase sightglass","11_4202":"pistonR:piston pistonL:piston","11_4206":"breather","11_4209":"balancer","11_4215":"oilfilter drainplug","11_4216":"oilpump","11_4218":"crankcase","11_4267":"camchains","11_4277":"camchains","11_4289":"coverR coverL","11_4292":"headR headL","11_4293":"headR headL","11_4294":"camsR:valve camsL:valve","11_4432":"beltcover","11_4566":"crankcase cylR cylL headR headL crank pistonR pistonL","11_4589":"crankcase cylR cylL headR headL coverR coverL beltcover crank pistonR pistonL camsR camsL camchains balancer oilpump","11_5104":"crankcase","11_6541":"camsR:cam camsR:camSprocket camsL:cam camsL:camSprocket","11_7101":"coverR coverL","12_1259":"plugR plugL plug2R plug2L coilR coilL coil2R coil2L","12_2110":"starter","12_2111":"alternator belt","12_2129":"harness","12_2359":"sensors","12_2365":"sensors","12_2366":"iat","12_2368":"sensors","12_2412":"sensors","12_2413":"sensors","13_1118":"airbox airfilter intakeDuct","13_1391":"throttle","13_1516":"fuelLine","13_1705":"ecu","13_1876":"throttle","13_1979":"ecu","16_0907":"fuelCap","16_0909":"tank","16_1098":"canister","16_1099":"fuelPump","16_1121":"tank","17_0730":"cooler oilLines","18_0529":"headers collector lambda","18_1206":"flap","18_1870":"silencers","21_0195":"clutch","21_0307":"clutchSlave","23_0964":"shiftLink","23_1108":"gears","23_1109":"shiftMech","23_1110":"shiftMech","23_1114":"gearbox","23_1115":"gearbox gears shiftMech","23_1120":"gearbox","31_1297":"fork forkBoots","31_1302":"fork forkBoots","31_1303":"fork","31_1304":"triple","32_2466":"triple","32_2481":"bars","32_2483":"bars throttle","32_2498":"resF","32_2499":"clutchMaster","32_2701":"bars","32_2752":"bars","32_2753":"bars","32_2754":"bars","33_1226":"swingarm pivots","33_1622":"finaldrive fdgear fdfill fddrain","33_1626":"finaldrive fdgear","33_1627":"finaldrive fdgear","33_1651":"driveshaft","33_1873":"strut","33_2050":"shock","34_1393":"brakeR","34_1994":"resF resR","34_2092":"abs","34_2427":"brakeF","34_2434":"rearMaster resR","34_2437":"brakeLines","34_2438":"brakeLines","35_0478":"rearMaster","36_2300":"wheelR","36_2301":"wheelF","46_1535":"frame","46_1553":"throttle","46_1554":"frame seat","46_1556":"tail","46_1829":"airbox","46_1889":"frame","46_1891":"frame","46_1892":"standSwitch","46_1894":"fender","46_1901":"instrument","46_1902":"bars","46_1903":"pegs","46_2027":"pegs","46_2028":"pegs","46_2062":"pegs","51_0602":"bars","51_3316":"bars","51_3485":"bars","51_4053":"bars","51_4093":"fender","51_9980":"fender","52_4240":"seat","61_1998":"harness","61_2484":"harness","61_2485":"harness","61_3019":"diag","61_3065":"horn","61_3273":"harness loom underseat","61_3642":"standSwitch","61_3928":"battery","61_5083":"underseat","61_5196":"underseat","61_5331":"underseat","61_5658":"standSwitch","61_5758":"underseat relays","61_5852":"harness","61_5853":"harness","61_5909":"harness","61_5912":"diag","61_5935":"relays","61_6046":"rearMaster","61_6232":"harness","61_6289":"harness","61_6469":"harness","61_6470":"harness","61_6475":"harness","61_6476":"harness","61_6638":"diag","61_7021":"bars","61_7041":"bars","61_7044":"bars","61_7057":"bars","61_7058":"bars","61_7797":"harness","62_0636":"instrument","62_0642":"instrument","62_0644":"instrument","63_1582":"light","63_1756":"tail","63_1823":"light","63_1824":"tail","63_1827":"tail","63_2131":"light","63_2252":"light","63_2253":"light","63_2308":"tail","65_3038":"underseat","65_3230":"underseat","77_0029":"filler","77_0350":"coverR coverL","77_0351":"coverR coverL","77_0599":"bars","77_0659":"bars","77_0661":"light","77_0781":"tank","77_0835":"headers","77_0836":"coverR coverL","77_0837":"cooler","77_0842":"bars","77_0843":"bars resF clutchMaster","77_0844":"pegs","77_0845":"throttle","77_0847":"bars","77_0850":"seat","77_0851":"seat","77_0852":"seat","77_0855":"coverR coverL","77_0859":"silencers","77_0867":"pegs","77_0869":"silencers","77_0870":"silencers","77_0879":"silencers","77_0880":"instrument","77_0882":"instrument","77_0886":"airbox","77_0887":"underseat","77_0912":"coverR coverL","77_0913":"coverR coverL","77_0969":"fender","77_0978":"bars","77_0984":"airbox","77_1009":"instrument","77_1030":"light","77_1193":"beltcover","77_1306":"pegs","77_1344":"resF clutchMaster","77_0885":"triple","77_0857":"tank"};
 const ITEMS={
+  '11_6541':{'11 31 7 726 778':'camsR:camSprocket camsL:camSprocket'},
   '12_1259':{
     '12 12 7 726 112':'plugR plugL plug2R plug2L',
     '12 13 8 560 173':'coilR coilL',
