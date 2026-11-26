@@ -151,7 +151,7 @@ function meshAngle(thA,zA,zB,phi){return -(zA/zB)*(thA-phi)+phi+Math.PI+Math.PI/
 /* coordinates in mm: X forward (rear axle = 0), Y up, Z to rider's right */
 const CR=new V3(770,430,0);
 
-/* Standard K23 wheels. Keep the rear axle datum used by the scanned final drive.
+/* K23 cross-spoke option. Keep the rear axle datum used by the scanned final drive.
    Nominal tyre radii are measured from the bead diameter and section height. */
 const REAR_AXLE_Y=315, WHEELBASE=1527;
 const FRONT_RIM=19*25.4/2, REAR_RIM=17*25.4/2;
@@ -188,19 +188,34 @@ function wheel(id,x,y,rim,section,width,rimWidth,name,desc,ex){
   const hub=rear?[[24,-35],[55,-35],[68,-19],[68,52],[54,65],[24,65]]:
     [[13,-67],[31,-67],[51,-57],[57,-24],[57,24],[51,57],[31,67],[13,67]];
   lathe(g,hub,'z',[x,y,0],'rimblk',48);
-  const web=poly([[46,-14],[rim-11,9],[rim-14,28],[67,31],[46,18]]);
-  for(let i=0;i<5;i++){
-    slab(g,web,21,4,'rimblk',[x,y,rear?-10:0],'z').rotation.z=i*2*Math.PI/5;
-    const a=i*2*Math.PI/5;
-    if(rear)cyl(g,9,14,'z',[x+52*Math.cos(a),y+52*Math.sin(a),-37],'steel',6);
+  const spoke=new THREE.CylinderGeometry(1.8,1.8,1,8);
+  const pose=new THREE.Object3D(), up=new V3(0,1,0), spokes=[];
+  for(let i=0;i<40;i++){
+    const side=i%2?1:-1;
+    const angle=i*2*Math.PI/40, hubAngle=angle+(i%4<2?1:-1)*0.42;
+    const from=new V3(x+48*Math.cos(hubAngle),y+48*Math.sin(hubAngle),-side*(rear?25:38));
+    const to=new V3(x+(rim-5)*Math.cos(angle),y+(rim-5)*Math.sin(angle),side*(bead+2));
+    const direction=to.clone().sub(from);
+    pose.position.copy(from).lerp(to,0.5);
+    pose.quaternion.setFromUnitVectors(up,direction.clone().normalize());
+    pose.scale.set(1,direction.length(),1);
+    pose.updateMatrix();
+    spokes.push(pose.matrix.clone());
   }
-  g.children.forEach(m=>{if(m!==tyre)m.userData.sub='rim';});
+  const spokeMesh=inst(g,spoke,'steel',spokes);
+  if(rear){
+    for(let i=0;i<5;i++){
+      const angle=i*2*Math.PI/5;
+      cyl(g,9,14,'z',[x+52*Math.cos(angle),y+52*Math.sin(angle),-37],'steel',6);
+    }
+  }
+  g.children.forEach(m=>{if(m!==tyre)m.userData.sub=m===spokeMesh?'spoke':'rim';});
   return g;
 }
 wheel('wheelF',WHEELBASE,FRONT_AXLE_Y,FRONT_RIM,FRONT_SECTION,120,3.0*25.4,
-  'Переднее колесо','Штатное литое колесо 19″, шина 120/70 R19. Давление 2,5 бар на холодную.',[420,0,0]);
+  'Переднее колесо','Колесо с перекрёстными спицами 19″, шина 120/70 R19. Давление 2,5 бар на холодную.',[420,0,0]);
 wheel('wheelR',0,REAR_AXLE_Y,REAR_RIM,REAR_SECTION,170,4.5*25.4,
-  'Заднее колесо','Штатное литое колесо 17″, шина 170/60 R17. Давление 2,9 бар на холодную. Крепится к фланцу главной передачи.',[-420,0,0]);
+  'Заднее колесо','Колесо с перекрёстными спицами 17″, шина 170/60 R17. Давление 2,9 бар на холодную. Крепится к фланцу главной передачи.',[-420,0,0]);
 
 /* drilled floating disc */
 function disc(g,x,y,z,R,ri,holes){const s=new THREE.Shape();s.absarc(0,0,R,0,Math.PI*2,false);
@@ -1858,7 +1873,7 @@ function renderPanel(){
   if(tab==='cat'){panel.innerHTML='';return;}
   if(tab==='bike'){
     panel.innerHTML=`<h2>Твой R nineT Scrambler</h2>
-    <p class="lead">Кузов, рама, наружные части двигателя, тормоза и руль основаны на модели R nineT. У базового Scrambler K23 в модели литые колёса 19″ и 17″, передняя вилка с гофрами и два выхода выпуска слева. Формы деталей и креплений восстановлены приблизительно. Тяни, чтобы покрутить. Ползунок внизу разносит мотоцикл на узлы, клик по детали покажет, что это и какие работы с ней связаны.</p>
+    <p class="lead">Кузов, рама, наружные части двигателя, тормоза и руль основаны на модели R nineT. В модели Scrambler K23 с заводской опцией перекрёстных спиц. Спереди колесо 19″, сзади 17″. У передней вилки есть гофры, два выхода выпуска расположены слева. Формы деталей и креплений восстановлены приблизительно. Тяни, чтобы покрутить. Ползунок внизу разносит мотоцикл на узлы, клик по детали покажет, что это и какие работы с ней связаны.</p>
     <p class="src" id="bodyNote">3D-модель: «BMW R 90 Pure», автор Nieve5677, <a href="https://sketchfab.com/3d-models/bmw-r-90-pure-01cf4b2bbea447fa978b4f57b3ca1db9" target="_blank" rel="noopener">Sketchfab</a>, лицензия CC BY 4.0. Детали разбиты и перекрашены.</p>
     <div id="pickbox"></div>
     <h3>Контуры: как он живёт</h3>
@@ -2270,7 +2285,7 @@ const GROUPS={'02':'Сервис и жидкости','11':'Двигатель',
 let DATA=null,cur=null,q='',open=null;setTimeout(()=>load(),3000);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* Diagram links show an assembly for orientation. Item links select its own geometry. */
-const LINK={"02_0112":"oilfilter drainplug filler sightglass","02_0117":"fork","02_0146":"brakeF brakeR","02_0411":"filler sightglass","11_2806":"pistonR:rod pistonL:rod","11_3595":"cylR cylL","11_3669":"crank","11_4200":"crankcase sightglass","11_4202":"pistonR:piston pistonL:piston","11_4206":"breather","11_4209":"balancer","11_4215":"oilfilter drainplug","11_4216":"oilpump","11_4218":"crankcase","11_4267":"camchains","11_4277":"camchains","11_4289":"coverR coverL","11_4292":"headR headL","11_4293":"headR headL","11_4294":"camsR:valve camsL:valve","11_4432":"beltcover","11_4566":"crankcase cylR cylL headR headL crank pistonR pistonL","11_4589":"crankcase cylR cylL headR headL coverR coverL beltcover crank pistonR pistonL camsR camsL camchains balancer oilpump","11_5104":"crankcase","11_6541":"camsR:cam camsL:cam","11_7101":"coverR coverL","12_1259":"plugR plugL plug2R plug2L coilR coilL coil2R coil2L","12_2110":"starter","12_2111":"alternator belt","12_2129":"harness","12_2359":"sensors","12_2365":"sensors","12_2366":"iat","12_2368":"sensors","12_2412":"sensors","12_2413":"sensors","13_1118":"airbox airfilter intakeDuct","13_1391":"throttle","13_1516":"fuelLine","13_1705":"ecu","13_1876":"throttle","13_1979":"ecu","16_0907":"fuelCap","16_0909":"tank","16_1098":"canister","16_1099":"fuelPump","16_1121":"tank","17_0730":"cooler oilLines","18_0529":"headers collector lambda","18_1206":"flap","18_1870":"silencers","21_0195":"clutch","21_0307":"clutchSlave","23_0964":"shiftLink","23_1108":"gears","23_1109":"shiftMech","23_1110":"shiftMech","23_1114":"gearbox","23_1115":"gearbox gears shiftMech","23_1120":"gearbox","31_1297":"fork forkBoots","31_1302":"fork forkBoots","31_1303":"fork","31_1304":"triple","32_2466":"triple","32_2481":"bars","32_2483":"bars throttle","32_2498":"resF","32_2499":"clutchMaster","32_2701":"bars","32_2752":"bars","32_2753":"bars","32_2754":"bars","33_1226":"swingarm pivots","33_1622":"finaldrive fdgear fdfill fddrain","33_1626":"finaldrive fdgear","33_1627":"finaldrive fdgear","33_1651":"driveshaft","33_1873":"strut","33_2050":"shock","34_1393":"brakeR","34_1994":"resF resR","34_2092":"abs","34_2427":"brakeF","34_2434":"rearMaster resR","34_2437":"brakeLines","34_2438":"brakeLines","35_0478":"rearMaster","36_2298":"wheelF wheelR","46_1535":"frame","46_1553":"throttle","46_1554":"frame seat","46_1556":"tail","46_1829":"airbox","46_1889":"frame","46_1891":"frame","46_1892":"standSwitch","46_1894":"fender","46_1901":"instrument","46_1902":"bars","46_1903":"pegs","46_2027":"pegs","46_2028":"pegs","46_2062":"pegs","51_0602":"bars","51_3316":"bars","51_3485":"bars","51_4053":"bars","51_4093":"fender","51_9980":"fender","52_4240":"seat","61_1998":"harness","61_2484":"harness","61_2485":"harness","61_3019":"diag","61_3065":"horn","61_3273":"harness loom underseat","61_3642":"standSwitch","61_3928":"battery","61_5083":"underseat","61_5196":"underseat","61_5331":"underseat","61_5658":"standSwitch","61_5758":"underseat relays","61_5852":"harness","61_5853":"harness","61_5909":"harness","61_5912":"diag","61_5935":"relays","61_6046":"rearMaster","61_6232":"harness","61_6289":"harness","61_6469":"harness","61_6470":"harness","61_6475":"harness","61_6476":"harness","61_6638":"diag","61_7021":"bars","61_7041":"bars","61_7044":"bars","61_7057":"bars","61_7058":"bars","61_7797":"harness","62_0636":"instrument","62_0642":"instrument","62_0644":"instrument","63_1582":"light","63_1756":"tail","63_1823":"light","63_1824":"tail","63_1827":"tail","63_2131":"light","63_2252":"light","63_2253":"light","63_2308":"tail","65_3038":"underseat","65_3230":"underseat","77_0029":"filler","77_0350":"coverR coverL","77_0351":"coverR coverL","77_0599":"bars","77_0659":"bars","77_0661":"light","77_0781":"tank","77_0835":"headers","77_0836":"coverR coverL","77_0837":"cooler","77_0842":"bars","77_0843":"bars resF clutchMaster","77_0844":"pegs","77_0845":"throttle","77_0847":"bars","77_0850":"seat","77_0851":"seat","77_0852":"seat","77_0855":"coverR coverL","77_0859":"silencers","77_0867":"pegs","77_0869":"silencers","77_0870":"silencers","77_0879":"silencers","77_0880":"instrument","77_0882":"instrument","77_0886":"airbox","77_0887":"underseat","77_0912":"coverR coverL","77_0913":"coverR coverL","77_0969":"fender","77_0978":"bars","77_0984":"airbox","77_1009":"instrument","77_1030":"light","77_1193":"beltcover","77_1306":"pegs","77_1344":"resF clutchMaster","77_0885":"triple","77_0857":"tank"};
+const LINK={"02_0112":"oilfilter drainplug filler sightglass","02_0117":"fork","02_0146":"brakeF brakeR","02_0411":"filler sightglass","11_2806":"pistonR:rod pistonL:rod","11_3595":"cylR cylL","11_3669":"crank","11_4200":"crankcase sightglass","11_4202":"pistonR:piston pistonL:piston","11_4206":"breather","11_4209":"balancer","11_4215":"oilfilter drainplug","11_4216":"oilpump","11_4218":"crankcase","11_4267":"camchains","11_4277":"camchains","11_4289":"coverR coverL","11_4292":"headR headL","11_4293":"headR headL","11_4294":"camsR:valve camsL:valve","11_4432":"beltcover","11_4566":"crankcase cylR cylL headR headL crank pistonR pistonL","11_4589":"crankcase cylR cylL headR headL coverR coverL beltcover crank pistonR pistonL camsR camsL camchains balancer oilpump","11_5104":"crankcase","11_6541":"camsR:cam camsL:cam","11_7101":"coverR coverL","12_1259":"plugR plugL plug2R plug2L coilR coilL coil2R coil2L","12_2110":"starter","12_2111":"alternator belt","12_2129":"harness","12_2359":"sensors","12_2365":"sensors","12_2366":"iat","12_2368":"sensors","12_2412":"sensors","12_2413":"sensors","13_1118":"airbox airfilter intakeDuct","13_1391":"throttle","13_1516":"fuelLine","13_1705":"ecu","13_1876":"throttle","13_1979":"ecu","16_0907":"fuelCap","16_0909":"tank","16_1098":"canister","16_1099":"fuelPump","16_1121":"tank","17_0730":"cooler oilLines","18_0529":"headers collector lambda","18_1206":"flap","18_1870":"silencers","21_0195":"clutch","21_0307":"clutchSlave","23_0964":"shiftLink","23_1108":"gears","23_1109":"shiftMech","23_1110":"shiftMech","23_1114":"gearbox","23_1115":"gearbox gears shiftMech","23_1120":"gearbox","31_1297":"fork forkBoots","31_1302":"fork forkBoots","31_1303":"fork","31_1304":"triple","32_2466":"triple","32_2481":"bars","32_2483":"bars throttle","32_2498":"resF","32_2499":"clutchMaster","32_2701":"bars","32_2752":"bars","32_2753":"bars","32_2754":"bars","33_1226":"swingarm pivots","33_1622":"finaldrive fdgear fdfill fddrain","33_1626":"finaldrive fdgear","33_1627":"finaldrive fdgear","33_1651":"driveshaft","33_1873":"strut","33_2050":"shock","34_1393":"brakeR","34_1994":"resF resR","34_2092":"abs","34_2427":"brakeF","34_2434":"rearMaster resR","34_2437":"brakeLines","34_2438":"brakeLines","35_0478":"rearMaster","36_2300":"wheelR","36_2301":"wheelF","46_1535":"frame","46_1553":"throttle","46_1554":"frame seat","46_1556":"tail","46_1829":"airbox","46_1889":"frame","46_1891":"frame","46_1892":"standSwitch","46_1894":"fender","46_1901":"instrument","46_1902":"bars","46_1903":"pegs","46_2027":"pegs","46_2028":"pegs","46_2062":"pegs","51_0602":"bars","51_3316":"bars","51_3485":"bars","51_4053":"bars","51_4093":"fender","51_9980":"fender","52_4240":"seat","61_1998":"harness","61_2484":"harness","61_2485":"harness","61_3019":"diag","61_3065":"horn","61_3273":"harness loom underseat","61_3642":"standSwitch","61_3928":"battery","61_5083":"underseat","61_5196":"underseat","61_5331":"underseat","61_5658":"standSwitch","61_5758":"underseat relays","61_5852":"harness","61_5853":"harness","61_5909":"harness","61_5912":"diag","61_5935":"relays","61_6046":"rearMaster","61_6232":"harness","61_6289":"harness","61_6469":"harness","61_6470":"harness","61_6475":"harness","61_6476":"harness","61_6638":"diag","61_7021":"bars","61_7041":"bars","61_7044":"bars","61_7057":"bars","61_7058":"bars","61_7797":"harness","62_0636":"instrument","62_0642":"instrument","62_0644":"instrument","63_1582":"light","63_1756":"tail","63_1823":"light","63_1824":"tail","63_1827":"tail","63_2131":"light","63_2252":"light","63_2253":"light","63_2308":"tail","65_3038":"underseat","65_3230":"underseat","77_0029":"filler","77_0350":"coverR coverL","77_0351":"coverR coverL","77_0599":"bars","77_0659":"bars","77_0661":"light","77_0781":"tank","77_0835":"headers","77_0836":"coverR coverL","77_0837":"cooler","77_0842":"bars","77_0843":"bars resF clutchMaster","77_0844":"pegs","77_0845":"throttle","77_0847":"bars","77_0850":"seat","77_0851":"seat","77_0852":"seat","77_0855":"coverR coverL","77_0859":"silencers","77_0867":"pegs","77_0869":"silencers","77_0870":"silencers","77_0879":"silencers","77_0880":"instrument","77_0882":"instrument","77_0886":"airbox","77_0887":"underseat","77_0912":"coverR coverL","77_0913":"coverR coverL","77_0969":"fender","77_0978":"bars","77_0984":"airbox","77_1009":"instrument","77_1030":"light","77_1193":"beltcover","77_1306":"pegs","77_1344":"resF clutchMaster","77_0885":"triple","77_0857":"tank"};
 const ITEMS={
   '12_1259':{
     '12 12 7 726 112':'plugR plugL plug2R plug2L',
@@ -2279,7 +2294,8 @@ const ITEMS={
     '12 13 8 565 080':'coil2R'
   },
   '31_1302':{'31 42 8 350 915':'forkBoots'},
-  '36_2298':{'36 31 8 562 506':'wheelF:rim','36 31 8 562 501':'wheelR:rim'},
+  '36_2300':{'36 31 8 562 513':'wheelR:rim wheelR:spoke','36 31 8 406 051':'wheelR:spoke'},
+  '36_2301':{'36 31 8 562 512':'wheelF:rim wheelF:spoke','36 31 8 406 050':'wheelF:spoke'},
   '46_1894':{'46 61 8 560 264':'fender'}
 };
 function linkOf(d,number){

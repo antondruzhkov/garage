@@ -58,12 +58,19 @@ async function run(name,ctxOpts,o){
     const spark=OPS.find(o=>o.id==='spark');
     const ignitionOk=['plug2L','plug2R'].every(id=>id in plugs&&spark.steps.some(s=>s.f.includes(id)&&s.off.includes(id)))
       &&Object.keys(plugs).length===4&&spark.need[0].startsWith('4 свечи');
-    const crossSpokes=diagrams.find(d=>d.id==='36_2301');
-    return {chassis,ignitionOk,catalog:CAT.linkOf(crossSpokes)===null};
+    const spokeWheels=[['wheelF','36_2301','36 31 8 406 050'],['wheelR','36_2300','36 31 8 406 051']];
+    const crossSpokes=spokeWheels.every(([wheel,id,number])=>{
+      let count=0;
+      P[wheel].g.traverse(o=>{if(o.userData.sub==='spoke')count=o.count;});
+      const diagram=diagrams.find(d=>d.id===id);
+      return count===40&&CAT.linkOf(diagram,number)?.[wheel]?.[0]==='spoke';
+    });
+    const cast=diagrams.find(d=>d.id==='36_2298');
+    return {chassis,ignitionOk,catalog:crossSpokes&&CAT.linkOf(cast)===null};
   });
   ok(k23.chassis,'K23: wheelbase, stock tyre sizes and fork gaiters');
   ok(k23.ignitionOk,'K23: four plugs in the catalog and service steps');
-  ok(k23.catalog,'K23: optional spoked wheel has no highlight on the cast wheel');
+  ok(k23.catalog,'K23: 40 cross spokes per wheel and matching catalog highlights');
   // overflow check: nothing wider than the screen
   const ov=await pg.evaluate(()=>document.documentElement.scrollWidth-innerWidth);ok(ov<=0,'no horizontal overflow');
 
