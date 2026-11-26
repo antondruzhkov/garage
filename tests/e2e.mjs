@@ -153,6 +153,18 @@ async function run(name,ctxOpts,o){
   ok(await pg.locator('#catl .diag').count()>=1,'search by BMW number');await shot('12-catalog');
   await tap('#catl [data-show]');ok(await pg.evaluate(()=>R9T.tab==='cat'&&GARAGE.view==='garage'),'show on bike');await pg.waitForTimeout(1200);await shot('13-cat-show');
   await tap('#catOff');
+  ok(await pg.evaluate(()=>GARAGE.view==='catalog'&&R9T.tab!=='cat'&&document.querySelector('#catq').value==='11 42 7 673 541'),
+    'closing the 3D assembly returns to the catalog search');
+  const needle='12 13 8 565 079',part='[data-part-number="'+needle+'"]';
+  await pg.fill('#catq',needle);
+  await tap(part);
+  ok(await pg.evaluate(()=>GARAGE.view==='garage'&&R9T.P.coil2L.tgt.hl===1&&R9T.P.coil2R.tgt.hl===0),
+    'choosing a catalog position highlights the matching part');
+  ok((await pg.locator('#catLbl').innerText()).includes('ANGLED IGNITION COIL, LEFT'),'3D preview names the selected part');
+  if(o.tg)await pg.evaluate(()=>Telegram.WebApp.BackButton._cb());
+  else await pg.keyboard.press('Escape');
+  ok(await pg.evaluate(number=>GARAGE.view==='catalog'&&document.querySelector('#catq').value===number
+    &&document.activeElement.dataset.partNumber===number,needle),'Back returns to the selected catalog position');
   // custom
   await tap('#tabbar [data-view="custom"]');await shot('14-custom');await tap('#wantCustom');ok(await pg.evaluate(()=>store.state.customWanted&&Array.isArray(store.state.custom)),'custom wanted + custom:[] in store');
   // cabinet + history form + card + pro
