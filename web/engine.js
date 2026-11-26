@@ -151,7 +151,16 @@ function meshAngle(thA,zA,zB,phi){return -(zA/zB)*(thA-phi)+phi+Math.PI+Math.PI/
 /* coordinates in mm: X forward (rear axle = 0), Y up, Z to rider's right */
 const CR=new V3(770,430,0);
 
-/* --- wheels: spoked, 17" rims, adventure-pattern tyres 120/70 R17 and 180/55 R17 --- */
+/* Standard K23 wheels. Keep the rear axle datum used by the scanned final drive.
+   Nominal tyre radii are measured from the bead diameter and section height. */
+const REAR_AXLE_Y=315, WHEELBASE=1527;
+const FRONT_RIM=19*25.4/2, REAR_RIM=17*25.4/2;
+const FRONT_SECTION=120*0.70, REAR_SECTION=170*0.60;
+const FRONT_RADIUS=FRONT_RIM+FRONT_SECTION, REAR_RADIUS=REAR_RIM+REAR_SECTION;
+const ROAD_Y=REAR_AXLE_Y-REAR_RADIUS, FRONT_AXLE_Y=ROAD_Y+FRONT_RADIUS;
+turntable.position.y+=ROAD_Y;
+ticks.position.y+=ROAD_Y;
+window.__floorSh.position.y+=ROAD_Y;
 const TYRE={};function tyreMat(w){if(TYRE[w])return TYRE[w];const c=document.createElement('canvas');c.width=2048;c.height=512;const x=c.getContext('2d');
   x.fillStyle='#1c1d1f';x.fillRect(0,0,2048,512);x.fillStyle='#232426';x.fillRect(0,0,2048,90);x.fillRect(0,422,2048,90);
   x.strokeStyle='#2e3033';x.lineWidth=2;[40,60,452,472].forEach(y=>{x.beginPath();x.moveTo(0,y);x.lineTo(2048,y);x.stroke();});
@@ -161,28 +170,37 @@ const TYRE={};function tyreMat(w){if(TYRE[w])return TYRE[w];const c=document.cre
     x.beginPath();x.moveTo(u+24,256-18);x.bezierCurveTo(u+48,256-60,u+54,256-110,u+88,256-150);x.stroke();
     x.lineWidth=6;x.beginPath();x.moveTo(u+10,256+170);x.lineTo(u+30,256+200);x.stroke();x.beginPath();x.moveTo(u+34,256-170);x.lineTo(u+54,256-200);x.stroke();}
   const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;t.anisotropy=8;t.encoding=THREE.sRGBEncoding;
-  const m=new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:-3,roughness:.88,metalness:0,envMapIntensity:.2,side:THREE.DoubleSide});TYRE[w]=m;return m;}
-function wheel(id,x,y,secH,secW,name,desc,ex){
-  const g=part(id,{name,desc,sys:'Ходовая',ex});
-  const R=216+secH,hw=secW/2;
-  const prof=[[208,-hw*.62],[222,-hw*.92],[R-secH*.55,-hw],[R-secH*.2,-hw*.94],[R-3,-hw*.66],[R,-hw*.3],[R+1,0],[R,hw*.3],[R-3,hw*.66],[R-secH*.2,hw*.94],[R-secH*.55,hw],[222,hw*.92],[208,hw*.62]];
-  const tp=[];for(let i=0;i<=40;i++){const u=i/40*2-1,ang=u*Math.PI*.5;tp.push([R-secH*(1-Math.cos(ang))*.62-(Math.abs(u)>.85?(Math.abs(u)-.85)*secH*1.6:0),Math.sin(ang)*hw*(1-.06*Math.abs(u))]);}
-  const prf=[[208,-hw*.62],[222,-hw*.92]].concat(tp.filter(q=>Math.abs(q[1])<hw*.94)).concat([[222,hw*.92],[208,hw*.62]]);
-  const t=lathe(g,prf,'z',[x,y,0],tyreMat(secW),128);t.userData.tyre=true;
-  /* rim: alloy hoop with flanges */
-  const rw=secW*.62/2;lathe(g,[[200,-rw-4],[214,-rw-4],[216,-rw+2],[204,-rw+6],[198,0],[204,rw-6],[216,rw-2],[214,rw+4],[200,rw+4]],'z',[x,y,0],'rimblk',96);
-  /* hub */
-  lathe(g,[[30,-78],[46,-78],[50,-62],[62,-56],[62,-40],[44,-30],[40,0],[44,30],[62,40],[62,56],[50,62],[46,78],[30,78]],'z',[x,y,0],'satin',40);
-  /* cross-laced spokes: 40, tangent to hub flange */
-  const o=new THREE.Object3D();const sp=new THREE.CylinderGeometry(1.8,1.8,1,6);sp.translate(0,.5,0);const sm=[];
-  for(let i=0;i<40;i++){const side=i%2?1:-1,a=i/40*Math.PI*2,tw=(i%4<2?1:-1)*.42;
-    const A=new V3(x+Math.cos(a+tw)*58,y+Math.sin(a+tw)*58,side*52),B=new V3(x+Math.cos(a)*200,y+Math.sin(a)*200,side*9);
-    const d=B.clone().sub(A);o.position.copy(A);o.quaternion.setFromUnitVectors(new V3(0,1,0),d.clone().normalize());o.scale.set(1,d.length(),1);o.updateMatrix();sm.push(o.matrix.clone());}
-  o.scale.set(1,1,1);inst(g,sp,'steel',sm);
+  const m=new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:-0.4,roughness:.88,metalness:0,envMapIntensity:.2,side:THREE.DoubleSide});TYRE[w]=m;return m;}
+function wheel(id,x,y,rim,section,width,rimWidth,name,desc,ex){
+  const g=part(id,{name,desc,sys:'Ходовая',ex,shell:true});
+  const radius=rim+section, half=width/2, bead=rimWidth/2;
+  const profile=[[rim,-bead],[rim+10,-half*.82],[rim+section*.4,-half],
+    [radius-section*.13,-half*.86],[radius-2,-half*.43],[radius,0],
+    [radius-2,half*.43],[radius-section*.13,half*.86],[rim+section*.4,half],
+    [rim+10,half*.82],[rim,bead],[rim,-bead]];
+  const tyre=lathe(g,profile,'z',[x,y,0],tyreMat(width),128);
+  tyre.userData.sub='tyre';
+  lathe(g,[[rim-12,-bead-5],[rim+6,-bead-5],[rim+6,-bead],[rim,-bead],
+    [rim,bead],[rim+6,bead],[rim+6,bead+5],[rim-12,bead+5],[rim-17,0],[rim-12,-bead-5]],
+    'z',[x,y,0],'rimblk',96);
+
+  const rear=id==='wheelR';
+  const hub=rear?[[24,-35],[55,-35],[68,-19],[68,52],[54,65],[24,65]]:
+    [[13,-67],[31,-67],[51,-57],[57,-24],[57,24],[51,57],[31,67],[13,67]];
+  lathe(g,hub,'z',[x,y,0],'rimblk',48);
+  const web=poly([[46,-14],[rim-11,9],[rim-14,28],[67,31],[46,18]]);
+  for(let i=0;i<5;i++){
+    slab(g,web,21,4,'rimblk',[x,y,rear?-10:0],'z').rotation.z=i*2*Math.PI/5;
+    const a=i*2*Math.PI/5;
+    if(rear)cyl(g,9,14,'z',[x+52*Math.cos(a),y+52*Math.sin(a),-37],'steel',6);
+  }
+  g.children.forEach(m=>{if(m!==tyre)m.userData.sub='rim';});
   return g;
 }
-wheel('wheelF',1527,300,84,120,'Переднее колесо','Спицованное колесо 17", шина 120/70 R17. Давление 2,5 бар на холодную.',[420,0,0]);
-wheel('wheelR',0,315,99,180,'Заднее колесо','Спицованное колесо 17", шина 180/55 R17. Давление 2,7 бар одному, 2,9 бар с пассажиром. Крепится болтами к фланцу главной передачи.',[-420,0,0]);
+wheel('wheelF',WHEELBASE,FRONT_AXLE_Y,FRONT_RIM,FRONT_SECTION,120,3.0*25.4,
+  'Переднее колесо','Штатное литое колесо 19″, шина 120/70 R19. Давление 2,5 бар на холодную.',[420,0,0]);
+wheel('wheelR',0,REAR_AXLE_Y,REAR_RIM,REAR_SECTION,170,4.5*25.4,
+  'Заднее колесо','Штатное литое колесо 17″, шина 170/60 R17. Давление 2,9 бар на холодную. Крепится к фланцу главной передачи.',[-420,0,0]);
 
 /* drilled floating disc */
 function disc(g,x,y,z,R,ri,holes){const s=new THREE.Shape();s.absarc(0,0,R,0,Math.PI*2,false);
@@ -206,7 +224,7 @@ const gBR=part('brakeR',{name:'Задний тормоз',desc:'Диск 265 м�
 disc(gBR,0,315,58,132,92,22);caliper(gBR,-92,222,64,.65,false);slab(gBR,poly([[-120,190],[-60,180],[40,290],[20,330],[-30,320]]),10,3,'case',[0,0,92]);cyl(gBR,4,40,'z',[-92,222,64],'brass',10);
 
 /* --- fork: 43 mm conventional, black sliders, gaiters; steering head angle 61.5° --- */
-const FA=new V3(1527,300,0), FU=new V3(-Math.cos(61.5*Math.PI/180),Math.sin(61.5*Math.PI/180),0);
+const FA=new V3(WHEELBASE,FRONT_AXLE_Y,0), FU=new V3(-Math.cos(61.5*Math.PI/180),Math.sin(61.5*Math.PI/180),0);
 const fpt=t=>FA.clone().addScaledVector(FU,t);
 
 const gF=part('fork',{name:'Вилка',desc:'Классическая телескопическая вилка 43 мм с резиновыми гофрами, ход 125 мм. Перья чёрные. Масло в вилке по регламенту Scrambler не меняется.',sys:'Ходовая',ex:[360,200,0]});
@@ -903,7 +921,6 @@ const OFFS={light:[-30,-12,0],pegs:[-90,0,0],rearMaster:[-90,0,0],shiftLink:[-90
 const SIDE={R:[0,-16,-36],L:[54,-16,38]};
 ['cyl','head','well','cover','coil','conn','plug','cams','piston'].forEach(b=>['L','R'].forEach(s=>{OFFS[b+s]=ENG.map((v,i)=>v+SIDE[s][i]);}));
 ['toolSocketR','toolExtR','toolTorqueR','toolAirR','toolGaugeR','toolFeelerR','dirtR'].forEach(id=>OFFS[id]=ENG.map((v,i)=>v+SIDE.R[i]));
-OFFS.wheelF=[-35,0,0];
 ['coil','conn'].forEach(b=>{OFFS[b+'R'][2]-=40;OFFS[b+'L'][2]+=40;});
 OFFS.camsR[2]-=40;OFFS.camsL[2]+=40;OFFS.toolFeelerR=OFFS.toolFeelerR.slice();OFFS.toolFeelerR[2]-=40;
 OFFS.drainplug=ENG.map((v,i)=>v+[0,-72,0][i]);
@@ -1470,6 +1487,8 @@ const VIEWS={
   headR:{p:[1350,850,1450],t:[770,430,330],n:'ГОЛОВКА СПРАВА'},
   headRclose:{p:[1150,700,1100],t:[770,430,300],n:'ГОЛОВКА СПРАВА, БЛИЗКО'},
   headL:{p:[1350,850,-1450],t:[770,430,-330],n:'ГОЛОВКА СЛЕВА'},
+  lowPlugR:{p:[750,125,760],t:[891,343,235],n:'НИЖНЯЯ СВЕЧА СПРАВА'},
+  lowPlugL:{p:[800,125,-760],t:[943,343,-235],n:'НИЖНЯЯ СВЕЧА СЛЕВА'},
   fd:{p:[-850,600,1200],t:[20,315,110],n:'ГЛАВНАЯ ПЕРЕДАЧА'},
   brakeF:{p:[2150,600,800],t:[1460,390,70],n:'ПЕРЕДНИЕ ТОРМОЗА'},
   brakeR:{p:[-500,420,800],t:[-40,260,60],n:'ЗАДНИЙ ТОРМОЗ'},
@@ -1517,18 +1536,55 @@ function updateEngine(){
 }
 let wheelSpin=0;
 /* wheel rotation: rotate the rear wheel group around its axle */
-const wR=P.wheelR.g;const wPivot=new THREE.Group();wPivot.position.set(0,315,0);root.add(wPivot);
-while(wR.children.length){const c=wR.children[0];c.position.y-=315;wPivot.add(c);}wR.add(wPivot);root.remove(wPivot);wR.add(wPivot);
+const wR=P.wheelR.g,wPivot=new THREE.Group();
+wPivot.position.y=REAR_AXLE_Y;
+for(const child of [...wR.children]){
+  child.position.y-=REAR_AXLE_Y;
+  wPivot.add(child);
+}
+wR.add(wPivot);
+/* Approximate the lower ignition parts using the same cylinder axes as the head meshes. */
+for(const [side,cx,sign,label,number] of [
+  ['R',891,1,'справа','12 13 8 565 080'],
+  ['L',943,-1,'слева','12 13 8 565 079']
+]){
+  const tip=new V3(cx,408,sign*197),axis=new V3(0,-0.94,sign*0.342).normalize();
+  const plug=part('plug2'+side,{name:'Нижняя свеча, '+label,
+    desc:'NGK MAR8B-JDS. Вторая свеча этого цилиндра расположена снизу головки (BMW 12_1259).',
+    sys:'Зажигание',layer:'internal',ex:axis.clone().multiplyScalar(290).toArray()});
+  const coil=part('coil2'+side,{name:'Нижняя угловая катушка, '+label,
+    desc:'BMW '+number+'. Установлена под головкой цилиндра на нижней свече.',
+    sys:'Зажигание',layer:'drive',ex:axis.clone().multiplyScalar(245).toArray()});
+  plug.position.copy(tip);
+  coil.position.copy(tip).addScaledVector(axis,61);
+  for(const g of [plug,coil])g.quaternion.setFromUnitVectors(new V3(0,1,0),axis);
+  cyl(plug,1.3,5,'y',[0,2,0],'steel',8);
+  cyl(plug,5,19,'y',[0,13.5,0],'steel',12);
+  cyl(plug,8.6,2,'y',[0,23,0],'copper',20);
+  cyl(plug,8.08,14,'y',[0,31,0],'steel',6);
+  latheAB(plug,[[6.5,0],[7.5,4],[7,10],[5.5,16],[4.5,18]],[0,38,0],[0,39,0],'ceramic',20);
+  cyl(plug,3.6,7,'y',[0,59,0],'steel',12);
+  cyl(coil,8.5,24,'y',[0,9,0],'rubber',18,9);
+  cyl(coil,11,20,'y',[0,31,0],'coil',20);
+  add(coil,new THREE.SphereGeometry(11,18,12),'coil',[0,41,0]);
+  cyl(coil,11,62,'x',[-31,41,0],'coil',20);
+  box(coil,[14,26,22],[-66,41,0],'black');
+  box(coil,[6,5,12],[-70,56,0],'red');
+  for(const g of [plug,coil]){
+    const p=P[g.name];p.home.copy(g.position);
+    g.traverse(m=>{if(m.isMesh){m.material.transparent=true;m.userData.baseOpacity=1;}});
+  }
+}
 const stEls={};
 /* ===== Узлы: что входит в каждый, разлёт на детали, разрез ===== */
 const SYSDEF={
- engine:{n:'Двигатель',dir:[1,.5,.95],ids:['crankcase','beltcover','throttle','cylL','cylR','headL','headR','coverL','coverR','capL','capR','coilL','coilR','connL','connR','plugL','plugR','camsL','camsR','pistonL','pistonR','crank','camchains','balancer','oilpump','oilfilter','drainplug','sightglass','filler','alternator','belt','starter','sensors','clutch','breather'],ctx:[],always:[]},
+ engine:{n:'Двигатель',dir:[1,.5,.95],ids:['crankcase','beltcover','throttle','cylL','cylR','headL','headR','coverL','coverR','capL','capR','coilL','coilR','connL','connR','plugL','plugR','coil2L','coil2R','plug2L','plug2R','camsL','camsR','pistonL','pistonR','crank','camchains','balancer','oilpump','oilfilter','drainplug','sightglass','filler','alternator','belt','starter','sensors','clutch','breather'],ctx:[],always:[]},
  drive:{n:'Привод',dir:[.25,.4,1],ids:['clutchMaster','clutch','clutchSlave','gearbox','gears','shiftMech','shiftLink','driveshaft','pivots','swingarm','strut','finaldrive','fdgear','fdfill','fddrain','wheelR'],ctx:['bars'],always:[],noFrame:['clutchMaster']},
- brakes:{n:'Тормоза',dir:[.75,.55,1],ids:['brakeF','brakeR','resF','resR','abs','brakeLines','rearMaster','wheelSensors'],ctx:['wheelF','wheelR','fork','bars','frame'],always:['resR']},
- elec:{n:'Электрика',dir:[-.55,.75,-1],ids:['harness','underseat','battery','ecu','relays','diag','powerCables','regulator','alternator','starter','coilL','coilR','connL','connR','plugL','plugR','sensors','lambda','flap','abs','wheelSensors','instrument','light','horn','tail','standSwitch','fuelPump','iat','loom'],
+ brakes:{n:'Тормоза',dir:[.75,.55,1],ids:['brakeF','brakeR','resF','resR','abs','brakeLines','rearMaster','wheelSensors'],ctx:['wheelF','wheelR','fork','forkBoots','bars','frame'],always:['resR']},
+ elec:{n:'Электрика',dir:[-.55,.75,-1],ids:['harness','underseat','battery','ecu','relays','diag','powerCables','regulator','alternator','starter','coilL','coilR','connL','connR','plugL','plugR','coil2L','coil2R','plug2L','plug2R','sensors','lambda','flap','abs','wheelSensors','instrument','light','horn','tail','standSwitch','fuelPump','iat','loom'],
    ctx:['frame','tank','seat','crankcase','cylL','cylR','headL','headR','coverL','coverR','gearbox','bars','fork','wheelF','wheelR'],open:true}};
 /* hand-built parts that are outside on the real bike: always shown, like the scanned shell */
-['oilfilter','drainplug','fdfill','fddrain'].forEach(id=>{if(P[id])P[id].ext=true;});
+['oilfilter','drainplug','fdfill','fddrain','coil2R','coil2L'].forEach(id=>{if(P[id])P[id].ext=true;});
 Object.values(SYSDEF).forEach(S=>{S.set=new Set(S.ids);S.ctxSet=new Set(S.ctx);S.always=S.always||[];});
 const SUBK=0.7;                               /* how far the pieces inside one part fly apart, relative to their distance from the part centre */
 /* every procedural part: put each child into its own wrapper, so the wrapper can move the child away without touching its animation */
@@ -1561,11 +1617,11 @@ function computeSys(){const all=new THREE.Box3(),boxes={};
   Object.entries(scopes).forEach(([k,Sd])=>{const u=new THREE.Box3();Sd.ids.forEach(id=>{if(boxes[id]&&!(Sd.noFrame&&Sd.noFrame.includes(id)))u.union(boxes[id]);});if(u.isEmpty())return;
     const c=u.getCenter(new V3()),r=u.getSize(new V3()).length()/2;SYSC[k]=c;
     Sd.ids.forEach(id=>{const p=P[id],b=boxes[id];if(!p||!b)return;const v=b.getCenter(new V3()).sub(c);let n=v.length()>1?v.clone().normalize():new V3(0,1,0);
-      const shell=!!p.scan;p.sysEx=p.sysEx||{};const e=(Sd.noFrame&&Sd.noFrame.includes(id))?p.ex.clone().multiplyScalar(.4):v.clone().multiplyScalar(shell?1.1:0.5).addScaledVector(n,shell?110:45);if(b.min.y+e.y<15)e.y=15-b.min.y;p.sysEx[k]=e;});
+      const shell=!!(p.scan||p.shell);p.sysEx=p.sysEx||{};const e=(Sd.noFrame&&Sd.noFrame.includes(id))?p.ex.clone().multiplyScalar(.4):v.clone().multiplyScalar(shell?1.1:0.5).addScaledVector(n,shell?110:45);if(b.min.y+e.y<15)e.y=15-b.min.y;p.sysEx[k]=e;});
     if(k!=='bike'){const d=new V3(...Sd.dir).normalize();VIEWS['sys_'+k]={p:c.clone().addScaledVector(d,Math.max(700,r*2.7)).toArray(),t:c.toArray(),n:Sd.n.toUpperCase()};}});}
 computeSys();
 const CLIP=new THREE.Plane(new V3(1,0,0),0);renderer.localClippingEnabled=true;
-function setClip(p,on){if(!!p._clip===on)return;p._clip=on;p.g.traverse(o=>{if(!o.isMesh||!o.userData.scan)return;const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>{m.clippingPlanes=on?[CLIP]:null;m.needsUpdate=true;});});}
+function setClip(p,on){if(!!p._clip===on)return;p._clip=on;p.g.traverse(o=>{if(!o.isMesh||(!o.userData.scan&&!p.shell))return;const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>{m.clippingPlanes=on?[CLIP]:null;m.needsUpdate=true;});});}
 function updateClip(){if(!cutPlane)return;const c=controls.target.clone();
   const n=c.clone().sub(camera.position);n.y*=0.25;n.normalize();CLIP.normal.copy(n);CLIP.constant=-n.dot(c);}
 
@@ -1599,8 +1655,8 @@ const OPS=[
   ]},
  {id:'spark',t:'Замена свечей',when:'Каждые 20 000 км или если троит',diff:2,time:'30-40 мин',
   keys:'свеча свечи зажигание катушка троит пропуски не заводится дёргается колодец',
-  need:['2 свечи NGK MAR8B-JDS','Свечная головка 14 мм тонкостенная, с резинкой или магнитом, привод 3/8"','Удлинитель 3/8", 10-15 см','Трещотка 3/8"','Динамометрический ключ 1/4" на 2-25 Нм (нужно выставить 12 Нм)','Плоский щуп 0,8 мм','Сжатый воздух: компрессор с пистолетом или баллончик','Очки, перчатки','По желанию: диэлектрическая силиконовая смазка'],
-  keep:['cylR','headR','coverR','coilR','connR','plugR','wellR','wellL','cylL','headL','coverL','coilL','connL','plugL','crankcase'],
+  need:['4 свечи NGK MAR8B-JDS: по две на каждый цилиндр','Свечная головка 14 мм тонкостенная, с резинкой или магнитом, привод 3/8"','Удлинитель 3/8", 10-15 см','Трещотка 3/8"','Динамометрический ключ 1/4" на 2-25 Нм (нужно выставить 12 Нм)','Плоский щуп 0,8 мм','Сжатый воздух: компрессор с пистолетом или баллончик','Очки, перчатки','По желанию: диэлектрическая силиконовая смазка'],
+  keep:['cylR','headR','coverR','coilR','connR','plugR','wellR','wellL','cylL','headL','coverL','coilL','connL','plugL','crankcase','coil2R','coil2L','plug2R','plug2L'],
   steps:[
    {h:'Только на холодном двигателе',v:'headR',f:['headR','headL'],x:'Мотоцикл простоял минимум 2-3 часа. Резьба свечи в алюминиевой головке: на горячем двигателе её легко сорвать. Зажигание выключено, ключ вынут. Начинаем с правого цилиндра.',facts:[['Двигатель','холодный']],w:'Сорванная резьба в головке = снятие головки и ремонт. Ни одного движения через силу.'},
    {h:'Сними накладку катушки',v:'headRclose',f:['capR'],off:['capR'],x:'Катушку и её провод закрывает чёрная пластиковая накладка на крышке клапанов. Поддень её за край пластиковой лопаткой и сними на себя. Металлической отвёрткой не лезь: поцарапаешь крышку и сломаешь защёлки.',facts:[['Инструмент','пластиковая лопатка']]},
@@ -1616,7 +1672,12 @@ const OPS=[
    {h:'Смажь наконечник и поставь катушку',v:'headRclose',f:['coilR'],off:['connR'],x:'Если есть диэлектрическая силиконовая смазка, нанеси тонкий слой на внутреннюю кромку резинового наконечника внизу катушки. Вставь катушку в колодец до упора: почувствуешь, как она села на свечу.',facts:[['Смазка','диэлектрическая, тонко, по желанию']]},
    {h:'Надень разъём до щелчка',v:'headRclose',f:['connR'],off:['capR'],x:'Разъём на верхушку катушки до щелчка защёлки. Провод уложи обратно в канал. Подёргай за корпус: не должен сниматься без нажатия на защёлку.'},
    {h:'Поставь накладку на место',v:'headRclose',f:['capR'],x:'Приложи накладку так, чтобы провод лёг в канал под ней, и прижми ладонью до щелчка защёлок по всему краю.'},
-   {h:'Левый цилиндр и пуск',v:'headL',f:['coilL','connL','plugL'],x:'Слева всё то же самое, в том же порядке. Потом заведи: работа ровная, на холостых не трясёт. Если троит, сначала проверь разъёмы катушек, потом работа «Какой цилиндр не работает».'}
+   {h:'Верхняя свеча слева',v:'headL',f:['coilL','connL','plugL'],off:['capL'],x:'Повтори действия с верхней свечой на левой головке: сними накладку и катушку, очисти колодец, замени свечу и собери узел.'},
+   {h:'Сними нижнюю катушку справа',v:'lowPlugR',f:['coil2R'],off:['coil2R'],x:'Под правой головкой находится угловая катушка. Освободи разъём и сними катушку вдоль оси свечи. Держись за корпус разъёма.'},
+   {h:'Замени нижнюю свечу справа',v:'lowPlugR',xray:true,f:['plug2R'],off:['coil2R','plug2R'],x:'Очисти гнездо свечи, используй тонкостенную головку 14 мм и подходящий по месту удлинитель. Новую свечу сначала наживи от руки, затем затяни по данным BMW для своего мотоцикла. Установи катушку и разъём.'},
+   {h:'Сними нижнюю катушку слева',v:'lowPlugL',f:['coil2L'],off:['coil2L'],x:'Найди угловую катушку под левой головкой. Отсоедини разъём и сними катушку вдоль оси свечи.'},
+   {h:'Замени нижнюю свечу слева',v:'lowPlugL',xray:true,f:['plug2L'],off:['coil2L','plug2L'],x:'Очисти гнездо и замени свечу так же, как справа. Установи левую угловую катушку и подключи разъём.'},
+   {h:'Проверь сборку и пуск',v:'overall',f:['coilL','coilR','coil2L','coil2R'],x:'Проверь разъёмы всех четырёх катушек и укладку проводов. Запусти мотоцикл и проверь, что оба цилиндра работают ровно.'}
   ]},
  {id:'coilSwap',t:'Перекинуть катушки (проверка)',when:'Когда один цилиндр не работает',diff:1,time:'15 мин + остывание',
   keys:'катушка катушки перекинуть поменять местами проверить троит зажигание',
@@ -1714,7 +1775,7 @@ const CONTOURS=[
          [[742,630,0],[744,622,-100],[748,606,-190],[748,560,-250],[840,480,-250]],
          [[530,705,-30],[470,690,-70],[400,600,-60],[404,540,0],[440,560,160],[600,540,220],[700,532,252]]]},
  {id:'elec',n:'Электрика и зажигание',c:'#ffe34d',chain:'Генератор → регулятор → аккумулятор → предохранители и реле → блок управления → катушки → свечи. Аккумулятор → реле → стартер',
-  parts:['harness','underseat','alternator','belt','beltcover','regulator','battery','relays','powerCables','ecu','loom','coilL','coilR','connL','connR','plugL','plugR','starter','sensors','iat','lambda','diag','horn','instrument','light','tail','bars'],
+  parts:['harness','underseat','alternator','belt','beltcover','regulator','battery','relays','powerCables','ecu','loom','coilL','coilR','connL','connR','plugL','plugR','coil2L','coil2R','plug2L','plug2R','starter','sensors','iat','lambda','diag','horn','instrument','light','tail','bars'],
   paths:[[[1072,644,0],[1075,650,-60],[1080,690,-110],[1000,760,-104],[740,700,-128],[600,680,-126],[450,772,-100],[370,745,0]],
          [[370,745,0],[280,745,0],[200,740,0]],
          [[200,740,0],[450,772,100],[600,680,126],[740,700,128],[850,606,300],[890,560,392],[890,508,388],[890,470,330],[890,470,260]],
@@ -1797,7 +1858,7 @@ function renderPanel(){
   if(tab==='cat'){panel.innerHTML='';return;}
   if(tab==='bike'){
     panel.innerHTML=`<h2>Твой R nineT Scrambler</h2>
-    <p class="lead">Кузов, рама, двигатель снаружи, вилка, тормоза и руль взяты из подробной 3D-модели R nineT, разбитой на детали. Твоё поверх неё: спицованные колёса и два глушителя слева, как на Scrambler. Тяни, чтобы покрутить. Ползунок внизу разносит мотоцикл на узлы, клик по детали покажет, что это и какие работы с ней связаны.</p>
+    <p class="lead">Кузов, рама, наружные части двигателя, тормоза и руль основаны на модели R nineT. У базового Scrambler K23 в модели литые колёса 19″ и 17″, передняя вилка с гофрами и два выхода выпуска слева. Формы деталей и креплений восстановлены приблизительно. Тяни, чтобы покрутить. Ползунок внизу разносит мотоцикл на узлы, клик по детали покажет, что это и какие работы с ней связаны.</p>
     <p class="src" id="bodyNote">3D-модель: «BMW R 90 Pure», автор Nieve5677, <a href="https://sketchfab.com/3d-models/bmw-r-90-pure-01cf4b2bbea447fa978b4f57b3ca1db9" target="_blank" rel="noopener">Sketchfab</a>, лицензия CC BY 4.0. Детали разбиты и перекрашены.</p>
     <div id="pickbox"></div>
     <h3>Контуры: как он живёт</h3>
@@ -1900,7 +1961,7 @@ function altCoils(){if(!GLB_OK)return;['L','R'].forEach(s=>{let use=false;
   if((tab==='engine'||tab==='elec'||tab==='bike')&&(xray||cutPlane||explode>0.01))use=true;
   ['coil','conn'].forEach(b=>{const p=P[b+s];if(!p)return;p.g.traverse(o=>{if(!o.isMesh)return;if(o.userData.dead){o.visible=false;return;}const scan=!!o.userData.scan;o.visible=scan?!use:use;});});});}
 let elecMode=false,seatOff=false;
-const ELECSET=new Set(['harness','underseat','battery','ecu','relays','diag','powerCables','regulator','alternator','starter','coilL','coilR','sensors','lambda','flap','abs','wheelSensors','instrument','light','horn','tail','standSwitch','fuelPump','iat']);
+const ELECSET=new Set(['harness','underseat','battery','ecu','relays','diag','powerCables','regulator','alternator','starter','coilL','coilR','coil2L','coil2R','sensors','lambda','flap','abs','wheelSensors','instrument','light','horn','tail','standSwitch','fuelPump','iat']);
 const USEAT=new Set(['battery','ecu','relays','diag','powerCables','underseat','harness','abs']);
 /* ---------- catalog: show a diagram's parts on the model ----------
    CATSHOW = {label, parts: {partId: [sub tags] | null}}. Only these parts are drawn solid and pulsing; the scanned shell stays as a
@@ -1912,7 +1973,7 @@ function applyCatShow(){catHidden.splice(0).forEach(o=>{o.visible=true;});
   Object.values(P).forEach(p=>{const t=p.tgt,want=CATSHOW.parts[p.id];
     if(want!==undefined){t.op=1;t.hl=1;t.off=0;t.sub=0;
       if(want&&want.length)p.g.traverse(o=>{if(o.isMesh&&o.visible&&!o.userData.scan){const s=subOf(o,p.g);if(want.indexOf(s)<0){o.visible=false;catHidden.push(o);}}});}
-    else{t.hl=0;t.off=0;t.sub=0;t.op=(p.scan&&!p.gone&&p.layer!=='tool'&&p.layer!=='fx')?0.06:0;}});}
+    else{t.hl=0;t.off=0;t.sub=0;t.op=((p.scan||p.shell)&&!p.gone&&p.layer!=='tool'&&p.layer!=='fx')?0.06:0;}});}
 function catFocusView(){if(!CATSHOW)return;const b=new THREE.Box3();
   Object.keys(CATSHOW.parts).forEach(id=>{const p=P[id];if(!p)return;p.g.updateMatrixWorld(true);
     p.g.traverse(o=>{if(!o.isMesh||!o.visible||!o.geometry)return;if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();
@@ -1932,7 +1993,7 @@ function setTargets(){altCoils();
     if(tab==='bike'||tab==='cat'){const inner=(p.layer==='internal'||p.hid)&&!(p.gone||p.ext||/^well/.test(p.id));
       t.op=(p.layer==='internal'||p.layer==='tool'||p.layer==='fx'||p.hid)&&!p.ext?0:1;
       if(inner)t.op=(xray||cutPlane)?1:(explode>0.01?Math.min(1,explode*4):0);
-      if(xray&&p.scan)t.op=0.16;
+      if(xray&&(p.scan||p.shell))t.op=0.16;
       if(p.hid&&picked===p.id)t.op=1;
       t.exT=p.ex.length()>1?p.ex.clone().multiplyScalar(1.2):((p.sysEx&&p.sysEx.bike)||p.ex);t.off=explode;t.sub=explode;if(picked===p.id)t.hl=1;
 
@@ -1942,7 +2003,7 @@ function setTargets(){altCoils();
       t.exT=(p.sysEx&&p.sysEx[tab])||p.ex;
       if(p.layer==='tool'||p.layer==='fx'||p.gone||/^well/.test(p.id))t.op=0;
       else if(inS){const open=xray||cutPlane||Sd.open||p.ext||Sd.always.indexOf(p.id)>=0;
-        if(p.scan)t.op=xray?0.16:1;else t.op=open?1:(explode>0.01?Math.min(1,explode*4):0);
+        if(p.scan||p.shell)t.op=xray?0.16:1;else t.op=open?1:(explode>0.01?Math.min(1,explode*4):0);
         if(tab==='engine'&&/^coil[LR]$/.test(p.id)&&xray)t.op=0.3;
         t.off=explode;t.sub=explode;if(picked===p.id)t.hl=1;}
       else if(Sd.ctxSet.has(p.id))t.op=(tab==='elec'&&seatOff&&p.id==='seat')?0:0.07;
@@ -1952,12 +2013,15 @@ function setTargets(){altCoils();
       if(/^piston|^crank$/.test(p.id))t.op=0;
       if(curOp){const s=curOp.steps[curStep];
         const keep=curOp.keep.indexOf(p.id)>=0||s.f.indexOf(p.id)>=0;
-        if(p.hid&&keep)t.op=1;
-        if(p.scan&&s.f.indexOf(p.id)<0&&s.f.some(id=>P[id]&&P[id].hid&&!/^(conn|coil|cap)/.test(id)))t.op=Math.min(t.op,0.3);
+        if((p.hid&&keep)||(/^plug2[LR]$/.test(p.id)&&s.f.includes(p.id)))t.op=1;
+        if((p.scan||p.shell)&&s.f.indexOf(p.id)<0&&s.f.some(id=>P[id]&&P[id].hid&&!/^(conn|coil|cap)/.test(id)))t.op=Math.min(t.op,0.3);
         if(ghost&&!keep)t.op=0.1;
         if(!ghost&&occl.has(p.id)&&s.f.indexOf(p.id)<0)t.op=Math.min(t.op,0.14);
         if(p.id==='loom'&&ghost&&!keep)t.op=0.05;
-        if(s.xray&&(/^(head|cover|cyl)R$/.test(p.id)||p.id==='crankcase'||p.id==='throttle'))t.op=0.2;
+        if(s.xray){
+          const side=s.f.includes('plug2L')?'L':'R';
+          if(['head'+side,'cover'+side,'cyl'+side,'crankcase','throttle'].includes(p.id))t.op=0.2;
+        }
         if(s.xray&&s.f.indexOf('fdgear')>=0&&/^(finaldrive|swingarm|wheelR|brakeR|fdfill|fddrain)$/.test(p.id))t.op=0.2;
         if(/^(head|cyl)[LR]$/.test(p.id)&&(s.off||[]).indexOf('cover'+p.id.slice(-1))>=0)t.op=Math.min(t.op,0.35);
         if(/^cams/.test(p.id))t.op=(s.off||[]).indexOf('cover'+p.id.slice(-1))>=0?1:0;
@@ -1969,7 +2033,7 @@ function setTargets(){altCoils();
       if(!curOp&&(p.layer==='tool'||p.layer==='fx'))t.op=0;
     }
   });
-  const scopeAll=tab==='bike'||tab==='cat';Object.values(P).forEach(p=>setClip(p,cutPlane&&!!p.scan&&(scopeAll||(SYSDEF[tab]&&SYSDEF[tab].set.has(p.id)))&&!activeSys));
+  const scopeAll=tab==='bike'||tab==='cat';Object.values(P).forEach(p=>setClip(p,cutPlane&&(p.scan||p.shell)&&(scopeAll||(SYSDEF[tab]&&SYSDEF[tab].set.has(p.id)))&&!activeSys));
   if(tab==='cat'&&CATSHOW)applyCatShow();else if(catHidden.length)applyCatShow();
   if(hoverId&&P[hoverId]&&P[hoverId].tgt.op>0.5)P[hoverId].tgt.hl=Math.max(P[hoverId].tgt.hl,0.75);
 }
@@ -2089,6 +2153,50 @@ function startBody(){if(bodyLoading||GLB_OK)return;bodyLoading=true;clearTimeout
   slowT=setTimeout(()=>{if(!GLB_OK)loaderSub('Медленный интернет, модель большая (5,6 МБ). Ещё грузится');},20000);
   loadBody().then(()=>{bodyLoading=false;if(!GLB_OK)loaderFail('no body');}).catch(loaderFail);}
 function loaderDone(){clearTimeout(slowT);window.__r9tLoaded=true;if(H.ready)setTimeout(()=>H.ready(GLB_OK),0);const l=document.getElementById('loader');if(l){l.classList.add('done');setTimeout(()=>l.remove(),600);}}
+const SCAN_FRONT_X=1492, SCAN_FRONT_Y=299.8;
+const FRONT_DX=WHEELBASE-SCAN_FRONT_X, FRONT_DY=FRONT_AXLE_Y-SCAN_FRONT_Y;
+function fitForkPoint(x,y,z){
+  const w=THREE.MathUtils.clamp((742-y)/(742-SCAN_FRONT_Y),0,1);
+  return [x+FRONT_DX*w,y+FRONT_DY*w,z];
+}
+function fitFrontMesh(id,positions){
+  for(let i=0;i<positions.length;i+=3){
+    const x=positions[i],y=positions[i+1],z=positions[i+2];
+    if(id==='fork'||id==='triple'){
+      const isLowerClamp=id==='triple'&&y<742&&x>1180&&Math.abs(z)<156;
+      if(id==='fork'||isLowerClamp)positions.set(fitForkPoint(x,y,z),i);
+    }else if(id==='brakeF'){
+      positions[i]+=FRONT_DX;
+      positions[i+1]+=FRONT_DY;
+    }else{
+      // Keep the tyre clearance and move the fender mount with the lower fork.
+      const dx=x-SCAN_FRONT_X,dy=y-SCAN_FRONT_Y,r=Math.hypot(dx,dy);
+      const growth=FRONT_RADIUS-295+6;
+      const w=1-THREE.MathUtils.smoothstep(Math.abs(z),61,76);
+      const [mountX,mountY]=fitForkPoint(x,y,z);
+      positions[i]=THREE.MathUtils.lerp(mountX,WHEELBASE+dx*(1+growth/r),w);
+      positions[i+1]=THREE.MathUtils.lerp(mountY,FRONT_AXLE_Y+dy*(1+growth/r),w);
+    }
+  }
+}
+const FRONT_MESHES=new Set(['fork','triple','brakeF','fender']);
+const REBUILT_WHEELS=new Set(['wheelF','wheelR']);
+function addForkBoots(){
+  const g=part('forkBoots',{name:'Резиновые гофры вилки',desc:'BMW 31 42 8 350 915, две гофры на перьях штатной вилки.',
+    sys:'Ходовая',ex:[365,110,0],shell:true});
+  const profile=[[22.5,0],[28,0],[28,6]];
+  for(let i=0;i<8;i++)profile.push([30,8+i*12],[25,14+i*12]);
+  profile.push([27,103],[24,106],[22.5,106],[22.5,0]);
+  for(const side of [-1,1]){
+    const a=fitForkPoint(1351,593,side*110);
+    const b=fitForkPoint(1279,742,side*110);
+    const length=new V3(...a).distanceTo(new V3(...b));
+    const boot=latheAB(g,profile.map(([r,t])=>[r,t*length/106]),a,b,'rubber',40);
+    boot.material.transparent=true;
+    boot.userData.baseOpacity=1;
+  }
+  wrapPart(P.forkBoots);
+}
 async function loadBody(){
   let buf;try{const r=await fetch('assets/bike.wasm');if(!r.ok)throw 0;
     const total=+r.headers.get('content-length')||5637773;
@@ -2099,12 +2207,14 @@ async function loadBody(){
     loaderProgress(.97);const u=new Uint8Array(buf,0,2);
     if(u[0]===0x1f&&u[1]===0x8b){if(typeof DecompressionStream==='undefined')throw new Error('no DecompressionStream');buf=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}}catch(e){loaderFail(e);return;}
   const dv=new DataView(buf),hl=dv.getUint32(0,true),H=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,4,hl))),base=4+hl;
-  const got=new Set(H.map(c=>c.l));got.add('clutchMaster');
+  const got=new Set(H.map(c=>c.l).filter(id=>!REBUILT_WHEELS.has(id)));
+  got.add('clutchMaster');
+  addForkBoots();
   [['capR','справа',1],['capL','слева',-1]].forEach(([id,nm,s])=>{if(P[id])return;part(id,{name:'Накладка катушки, '+nm,desc:'Чёрная пластиковая накладка на крышке клапанов. Под ней верхушка катушки с разъёмом, а провод от разъёма идёт вниз по каналу под этой же накладкой и уходит к жгуту под цилиндром. Снаружи провода не видно.',sys:'Зажигание',layer:'drive',ex:[0,90,s*260]});P[id].home=new V3();});
   ['R','L'].forEach(s=>{if(P['conn'+s])P['conn'+s].ex=new V3(0,20,(s==='R'?1:-1)*110);});
   /* hide our hand-built geometry where the scan has the real part */
   got.forEach(id=>{const p=P[id];if(!p)return;p.scan=true;if(/^(coil|conn)[LR]$/.test(id))return;
-    p.g.traverse(o=>{if(o.isMesh&&o!==p.g&&(id!=='wheelF'&&id!=='wheelR'||o.userData.tyre))o.visible=false;});});
+    p.g.traverse(o=>{if(o.isMesh&&o!==p.g)o.visible=false;});});
   /* the scan glues the hand controls into the handlebar; the piece it calls the front reservoir is the right mirror stem.
      Carve the two master cylinders with their built-in reservoirs (BMW 32_2498 brake, 32_2499 clutch) out of the handlebar by triangle position. */
   const MC=[[1072,1018,112,1152,1078,246],[1066,994,112,1136,1018,246]];
@@ -2114,12 +2224,14 @@ async function loadBody(){
       const az=Math.abs(z),hit=MC.some(b=>x>b[0]&&x<b[3]&&y>b[1]&&y<b[4]&&az>b[2]&&az<b[5]);
       out[hit?(z>0?'resF':'clutchMaster'):'bars'].push(qi[t],qi[t+1],qi[t+2]);}
     return Object.keys(out).filter(k=>out[k].length).map(k=>[k,new Uint32Array(out[k])]);}
-  H.forEach(c=>{if(!P[c.l]||/^LicPlate/.test(c.m))return;   /* number plate replaced by a blank one below */
+  H.forEach(c=>{if(!P[c.l]||REBUILT_WHEELS.has(c.l)||/^LicPlate/.test(c.m))return;   /* number plate replaced by a blank one below */
     const qp=new Uint16Array(buf,base+c.p,c.nv*3),qn=new Int8Array(buf,base+c.n,c.nv*3),qi0=c.i32?new Uint32Array(buf,base+c.i,c.nt*3):new Uint16Array(buf,base+c.i,c.nt*3);
     const P3=new Float32Array(c.nv*3);for(let i=0;i<c.nv*3;i++){const a=i%3;P3[i]=c.lo[a]+qp[i]/65535*c.sc[a];}
+    const adapted=FRONT_MESHES.has(c.l);
+    if(adapted)fitFrontMesh(c.l,P3);
     const cc=compCentres(qp,qi0,P3,c.nv),pos=new THREE.BufferAttribute(P3,3),nrm=new THREE.BufferAttribute(qn,3,true);
     relabel(c.l,qi0,P3).forEach(([l,qi])=>{const p=P[l];if(!p)return;
-    const g=new THREE.BufferGeometry();g.setAttribute('position',pos);g.setAttribute('normal',nrm);g.setIndex(new THREE.BufferAttribute(qi,1));g.computeBoundingSphere();
+    const g=new THREE.BufferGeometry();g.setAttribute('position',pos);g.setIndex(new THREE.BufferAttribute(qi,1));if(adapted)g.computeVertexNormals();else g.setAttribute('normal',nrm);g.computeBoundingSphere();
     const m=new THREE.Mesh(g,glbMaterial(l,c.m));m.position.copy(p.home).multiplyScalar(-1);
     m.userData.compC=cc;
     {const u={value:0};(p.scanU=p.scanU||[]).push(u);m.material.onBeforeCompile=sh=>{sh.uniforms.uEx=u;sh.vertexShader='attribute vec3 aOff;\nuniform float uEx;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed+=aOff*uEx;');};}
@@ -2145,7 +2257,7 @@ async function loadBody(){
   ['crashbars','rack'].forEach(id=>{if(P[id]){P[id].g.visible=false;P[id].gone=true;}});
   for(let i=pickables.length-1;i>=0;i--){const q=P[pickables[i].userData.part];if(q&&q.gone)pickables.splice(i,1);}
   /* hand-built parts with no scanned twin stay inside: shown in contours and service steps */
-  const KEEP=new Set(['wheelF','wheelR','capR','capL']);
+  const KEEP=new Set(['wheelF','wheelR','capR','capL','forkBoots']);
   Object.values(P).forEach(p=>{if(got.has(p.id)||KEEP.has(p.id))return;if(p.layer==='bike'||p.layer==='drive'){p.hid=true;if(p.layer==='bike'){p.wasBike=true;p.layer='internal';}}});
   finishScanOffsets();GLB_OK=true;loaderProgress(1);setTimeout(loaderDone,250);computeSys();setTargets();if(SYSDEF[tab])goView('sys_'+tab);if(window.__onBody)window.__onBody();}
 startBody();
@@ -2155,37 +2267,45 @@ const CAT=(function(){
 const GROUPS={'02':'Сервис и жидкости','11':'Двигатель','12':'Электрика двигателя','13':'Впуск и впрыск','16':'Топливо','17':'Маслорадиатор','18':'Выпуск',
  '21':'Сцепление','23':'Коробка передач','31':'Вилка','32':'Руль и органы управления','33':'Маятник, кардан, редуктор','34':'Тормоза и ABS','35':'Педали',
  '36':'Колёса и шины','46':'Рама и кузов','51':'Замки, зеркала, окраска','52':'Сиденье','61':'Электрика и жгуты','62':'Приборная панель','63':'Свет','65':'Сигнализация','71':'Наклейки','77':'Аксессуары BMW'};
-/* diagram -> 3D part (by title keywords, group-scoped) */
-const MAP=[[/^11.*CRANKSHAFT/,'crank'],[/^11.*CONNECTING ROD|^11.*PISTON/,'pistonR'],[/^11.*CYLINDER HEAD COVER/,'coverR'],[/^11.*CYLINDER HEAD\/|^11.*CONTROL SUPPORT/,'headR'],
- [/^11.*CYLINDER$/,'cylR'],[/^11.*TIMING GEAR|^11.*CAMSHAFT/,'camsR'],[/^11.*TIMING.*CHAIN/,'camchains'],[/^11.*TIMING CHAIN COVER/,'beltcover'],[/^11.*OIL PUMP/,'oilpump'],
- [/^11.*OIL FILTER/,'oilfilter'],[/^11.*COMPENSATING/,'balancer'],[/^11.*(ENGINE HOUSING|CRANKCASE|SHORT ENGINE|^11_\d+ ENGINE$)/,'crankcase'],[/^11.*VENTILATION/,'breather'],
- [/^12.*IGNITION/,'coilR'],[/^12.*STARTER/,'starter'],[/^12.*ALTERNATOR/,'alternator'],[/^12.*WIRING/,'loom'],[/^12.*SENSOR/,'sensors'],
- [/^13.*(SILENCER|FILTER)/,'airbox'],[/^13.*THROTTLE/,'throttle'],[/^13.*INJECTOR/,'fuelLine'],[/^13.*CONTROL UNIT/,'ecu'],[/^13.*MANIFOLD/,'intakeDuct'],
- [/^16.*PUMP/,'fuelPump'],[/^16.*CHARCOAL/,'canister'],[/^16.*LID/,'fuelCap'],[/^16/,'tank'],[/^17/,'cooler'],[/^18.*FLAP/,'flap'],[/^18.*MUFFLER/,'silencers'],[/^18/,'headers'],
- [/^21.*CONTROL/,'clutchSlave'],[/^21/,'clutch'],[/^23.*(SHIFT COMPONENTS|SELECTOR)/,'shiftMech'],[/^23.*SHAFTS/,'gears'],[/^23.*EXTERNAL/,'shiftLink'],[/^23/,'gearbox'],
- [/^31.*(BOTTOM|TOP)/,'triple'],[/^31/,'fork'],[/^32/,'bars'],[/^33.*DRIVE SHAFT/,'driveshaft'],[/^33.*(GEARBOX|PINION|RING GEAR|BEARING)/,'finaldrive'],[/^33.*STRUT/,'shock'],[/^33/,'swingarm'],
- [/^34.*(REAR WHEEL BRAKE|REAR BRAKE)/,'brakeR'],[/^34.*ABS/,'abs'],[/^34.*SPEED/,'wheelSensors'],[/^34/,'brakeF'],[/^35/,'rearMaster'],
- [/^36.*FRONT/,'wheelF'],[/^36/,'wheelR'],[/^46.*(SADDLE|REAR)/,'tail'],[/^46/,'frame'],[/^52/,'seat'],[/^61.*BATTERY/,'battery'],[/^61.*HORN/,'horn'],[/^61/,'loom'],
- [/^62/,'instrument'],[/^63.*TAIL/,'tail'],[/^63/,'light']];
 let DATA=null,cur=null,q='',open=null;setTimeout(()=>load(),3000);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-/* every diagram -> the 3D parts it covers (checked by hand against the part lists); id:tag keeps one piece of a part */
-const LINK={"02_0112":"oilfilter drainplug filler sightglass","02_0117":"fork","02_0146":"brakeF brakeR","02_0411":"filler sightglass","11_2806":"pistonR:rod pistonL:rod","11_3595":"cylR cylL","11_3669":"crank","11_4200":"crankcase sightglass","11_4202":"pistonR:piston pistonL:piston","11_4206":"breather","11_4209":"balancer","11_4215":"oilfilter drainplug","11_4216":"oilpump","11_4218":"crankcase","11_4267":"camchains","11_4277":"camchains","11_4289":"coverR coverL","11_4292":"headR headL","11_4293":"headR headL","11_4294":"camsR:valve camsL:valve","11_4432":"beltcover","11_4566":"crankcase cylR cylL headR headL crank pistonR pistonL","11_4589":"crankcase cylR cylL headR headL coverR coverL beltcover crank pistonR pistonL camsR camsL camchains balancer oilpump","11_5104":"crankcase","11_6541":"camsR:cam camsL:cam","11_7101":"coverR coverL","12_1259":"plugR plugL coilR coilL connR connL","12_2110":"starter","12_2111":"alternator belt","12_2129":"harness","12_2359":"sensors","12_2365":"sensors","12_2366":"iat","12_2368":"sensors","12_2412":"sensors","12_2413":"sensors","13_1118":"airbox airfilter intakeDuct","13_1391":"throttle","13_1516":"fuelLine","13_1705":"ecu","13_1876":"throttle","13_1979":"ecu","16_0907":"fuelCap","16_0909":"tank","16_1098":"canister","16_1099":"fuelPump","16_1121":"tank","17_0730":"cooler oilLines","18_0529":"headers collector lambda","18_1206":"flap","18_1870":"silencers","21_0195":"clutch","21_0307":"clutchSlave","23_0964":"shiftLink","23_1108":"gears","23_1109":"shiftMech","23_1110":"shiftMech","23_1114":"gearbox","23_1115":"gearbox gears shiftMech","23_1120":"gearbox","31_1297":"fork","31_1302":"fork","31_1303":"fork","31_1304":"triple","32_2466":"triple","32_2481":"bars","32_2483":"bars throttle","32_2498":"resF","32_2499":"clutchMaster","32_2701":"bars","32_2752":"bars","32_2753":"bars","32_2754":"bars","33_1226":"swingarm pivots","33_1622":"finaldrive fdgear fdfill fddrain","33_1626":"finaldrive fdgear","33_1627":"finaldrive fdgear","33_1651":"driveshaft","33_1873":"strut","33_2050":"shock","34_1393":"brakeR","34_1994":"resF resR clutchMaster","34_2092":"abs","34_2427":"brakeF","34_2434":"rearMaster resR","34_2435":"wheelSensors","34_2436":"wheelSensors","34_2437":"brakeLines","34_2438":"brakeLines","35_0478":"rearMaster","36_2298":"wheelF wheelR","36_2300":"wheelR","36_2301":"wheelF","36_2309":"wheelF","36_2310":"wheelR","36_2575":"wheelF wheelR","46_1535":"frame","46_1553":"throttle","46_1554":"frame seat","46_1556":"tail","46_1829":"airbox","46_1889":"frame","46_1891":"frame","46_1892":"standSwitch","46_1894":"fender","46_1901":"instrument","46_1902":"bars","46_1903":"pegs","46_2027":"pegs","46_2028":"pegs","46_2062":"pegs","51_0602":"bars","51_3316":"bars","51_3485":"bars","51_4053":"bars","51_4093":"fender","51_9980":"fender","52_4240":"seat","61_1998":"harness","61_2484":"harness","61_2485":"harness","61_3019":"diag","61_3065":"horn","61_3273":"harness loom underseat","61_3642":"standSwitch","61_3928":"battery","61_5083":"underseat","61_5196":"underseat","61_5331":"underseat","61_5658":"standSwitch","61_5758":"underseat relays","61_5852":"harness","61_5853":"harness","61_5909":"harness","61_5912":"diag","61_5935":"relays","61_6046":"rearMaster","61_6232":"harness","61_6289":"harness","61_6469":"harness","61_6470":"harness","61_6475":"harness","61_6476":"harness","61_6638":"diag","61_7021":"bars","61_7041":"bars","61_7044":"bars","61_7057":"bars","61_7058":"bars","61_7797":"harness","62_0636":"instrument","62_0642":"instrument","62_0644":"instrument","63_1582":"light","63_1756":"tail","63_1823":"light","63_1824":"tail","63_1827":"tail","63_2131":"light","63_2252":"light","63_2253":"light","63_2308":"tail","65_3038":"underseat","65_3230":"underseat","77_0029":"filler","77_0350":"coverR coverL","77_0351":"coverR coverL","77_0599":"bars","77_0659":"bars","77_0661":"light","77_0781":"tank","77_0835":"headers","77_0836":"coverR coverL","77_0837":"cooler","77_0840":"wheelF","77_0842":"bars","77_0843":"bars resF clutchMaster","77_0844":"pegs","77_0845":"throttle","77_0847":"bars","77_0850":"seat","77_0851":"seat","77_0852":"seat","77_0855":"coverR coverL","77_0859":"silencers","77_0867":"pegs","77_0869":"silencers","77_0870":"silencers","77_0879":"silencers","77_0880":"instrument","77_0882":"instrument","77_0886":"airbox","77_0887":"underseat","77_0912":"coverR coverL","77_0913":"coverR coverL","77_0950":"wheelF","77_0969":"fender","77_0978":"bars","77_0984":"airbox","77_1009":"instrument","77_1030":"light","77_1193":"beltcover","77_1306":"pegs","77_1344":"resF clutchMaster","77_1392":"wheelR","77_1396":"wheelR","77_0885":"triple","77_0857":"tank"};
-function linkOf(d){const L=LINK[d.id];if(!L){const k=d.id+' '+d.t;for(const [re,id] of MAP)if(re.test(k)&&P[id])return {[id]:null};return null;}
-  const o={};L.split(' ').forEach(x=>{const [id,tag]=x.split(':');if(!P[id]||P[id].gone)return;if(tag){(o[id]=o[id]||[]).push(tag);}else o[id]=null;});
-  return Object.keys(o).length?o:null;}
+/* Diagram links show an assembly for orientation. Item links select its own geometry. */
+const LINK={"02_0112":"oilfilter drainplug filler sightglass","02_0117":"fork","02_0146":"brakeF brakeR","02_0411":"filler sightglass","11_2806":"pistonR:rod pistonL:rod","11_3595":"cylR cylL","11_3669":"crank","11_4200":"crankcase sightglass","11_4202":"pistonR:piston pistonL:piston","11_4206":"breather","11_4209":"balancer","11_4215":"oilfilter drainplug","11_4216":"oilpump","11_4218":"crankcase","11_4267":"camchains","11_4277":"camchains","11_4289":"coverR coverL","11_4292":"headR headL","11_4293":"headR headL","11_4294":"camsR:valve camsL:valve","11_4432":"beltcover","11_4566":"crankcase cylR cylL headR headL crank pistonR pistonL","11_4589":"crankcase cylR cylL headR headL coverR coverL beltcover crank pistonR pistonL camsR camsL camchains balancer oilpump","11_5104":"crankcase","11_6541":"camsR:cam camsL:cam","11_7101":"coverR coverL","12_1259":"plugR plugL plug2R plug2L coilR coilL coil2R coil2L","12_2110":"starter","12_2111":"alternator belt","12_2129":"harness","12_2359":"sensors","12_2365":"sensors","12_2366":"iat","12_2368":"sensors","12_2412":"sensors","12_2413":"sensors","13_1118":"airbox airfilter intakeDuct","13_1391":"throttle","13_1516":"fuelLine","13_1705":"ecu","13_1876":"throttle","13_1979":"ecu","16_0907":"fuelCap","16_0909":"tank","16_1098":"canister","16_1099":"fuelPump","16_1121":"tank","17_0730":"cooler oilLines","18_0529":"headers collector lambda","18_1206":"flap","18_1870":"silencers","21_0195":"clutch","21_0307":"clutchSlave","23_0964":"shiftLink","23_1108":"gears","23_1109":"shiftMech","23_1110":"shiftMech","23_1114":"gearbox","23_1115":"gearbox gears shiftMech","23_1120":"gearbox","31_1297":"fork forkBoots","31_1302":"fork forkBoots","31_1303":"fork","31_1304":"triple","32_2466":"triple","32_2481":"bars","32_2483":"bars throttle","32_2498":"resF","32_2499":"clutchMaster","32_2701":"bars","32_2752":"bars","32_2753":"bars","32_2754":"bars","33_1226":"swingarm pivots","33_1622":"finaldrive fdgear fdfill fddrain","33_1626":"finaldrive fdgear","33_1627":"finaldrive fdgear","33_1651":"driveshaft","33_1873":"strut","33_2050":"shock","34_1393":"brakeR","34_1994":"resF resR","34_2092":"abs","34_2427":"brakeF","34_2434":"rearMaster resR","34_2437":"brakeLines","34_2438":"brakeLines","35_0478":"rearMaster","36_2298":"wheelF wheelR","46_1535":"frame","46_1553":"throttle","46_1554":"frame seat","46_1556":"tail","46_1829":"airbox","46_1889":"frame","46_1891":"frame","46_1892":"standSwitch","46_1894":"fender","46_1901":"instrument","46_1902":"bars","46_1903":"pegs","46_2027":"pegs","46_2028":"pegs","46_2062":"pegs","51_0602":"bars","51_3316":"bars","51_3485":"bars","51_4053":"bars","51_4093":"fender","51_9980":"fender","52_4240":"seat","61_1998":"harness","61_2484":"harness","61_2485":"harness","61_3019":"diag","61_3065":"horn","61_3273":"harness loom underseat","61_3642":"standSwitch","61_3928":"battery","61_5083":"underseat","61_5196":"underseat","61_5331":"underseat","61_5658":"standSwitch","61_5758":"underseat relays","61_5852":"harness","61_5853":"harness","61_5909":"harness","61_5912":"diag","61_5935":"relays","61_6046":"rearMaster","61_6232":"harness","61_6289":"harness","61_6469":"harness","61_6470":"harness","61_6475":"harness","61_6476":"harness","61_6638":"diag","61_7021":"bars","61_7041":"bars","61_7044":"bars","61_7057":"bars","61_7058":"bars","61_7797":"harness","62_0636":"instrument","62_0642":"instrument","62_0644":"instrument","63_1582":"light","63_1756":"tail","63_1823":"light","63_1824":"tail","63_1827":"tail","63_2131":"light","63_2252":"light","63_2253":"light","63_2308":"tail","65_3038":"underseat","65_3230":"underseat","77_0029":"filler","77_0350":"coverR coverL","77_0351":"coverR coverL","77_0599":"bars","77_0659":"bars","77_0661":"light","77_0781":"tank","77_0835":"headers","77_0836":"coverR coverL","77_0837":"cooler","77_0842":"bars","77_0843":"bars resF clutchMaster","77_0844":"pegs","77_0845":"throttle","77_0847":"bars","77_0850":"seat","77_0851":"seat","77_0852":"seat","77_0855":"coverR coverL","77_0859":"silencers","77_0867":"pegs","77_0869":"silencers","77_0870":"silencers","77_0879":"silencers","77_0880":"instrument","77_0882":"instrument","77_0886":"airbox","77_0887":"underseat","77_0912":"coverR coverL","77_0913":"coverR coverL","77_0969":"fender","77_0978":"bars","77_0984":"airbox","77_1009":"instrument","77_1030":"light","77_1193":"beltcover","77_1306":"pegs","77_1344":"resF clutchMaster","77_0885":"triple","77_0857":"tank"};
+const ITEMS={
+  '12_1259':{
+    '12 12 7 726 112':'plugR plugL plug2R plug2L',
+    '12 13 8 560 173':'coilR coilL',
+    '12 13 8 565 079':'coil2L',
+    '12 13 8 565 080':'coil2R'
+  },
+  '31_1302':{'31 42 8 350 915':'forkBoots'},
+  '36_2298':{'36 31 8 562 506':'wheelF:rim','36 31 8 562 501':'wheelR:rim'},
+  '46_1894':{'46 61 8 560 264':'fender'}
+};
+function linkOf(d,number){
+  const link=number==null?LINK[d.id]:ITEMS[d.id]?.[number];
+  if(!link)return null;
+  const parts={};
+  for(const entry of link.split(' ')){
+    const [id,tag]=entry.split(':');
+    if(!P[id]||P[id].gone)continue;
+    if(!tag)parts[id]=null;
+    else if(parts[id]!==null)(parts[id]??=[]).push(tag);
+  }
+  return Object.keys(parts).length?parts:null;
+}
 const partOf=d=>{const o=linkOf(d);return o?Object.keys(o)[0]:null;};
 async function load(){if(DATA)return DATA;try{DATA=await (await fetch('assets/catalog.json')).json();}catch(e){DATA=[];}return DATA;}
 function rowsHTML(d){return `<table class="cat"><thead><tr><th>№</th><th>Номер BMW</th><th>Деталь</th><th>Шт</th></tr></thead><tbody>${d.r.map(r=>`<tr><td>${esc(r[0])}</td><td class="pn">${esc(r[1])}</td><td>${esc(r[2])}${r[4]?`<small>${esc(r[4])}</small>`:''}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table>${d.n&&d.n.length?`<p class="src">${d.n.map(esc).join('<br>')}</p>`:''}`;}
 function list(){const ql=q.trim().toLowerCase().replace(/\s+/g,'');
   const hits=DATA.filter(d=>!ql||(d.id+d.t).toLowerCase().replace(/\s+/g,'').includes(ql)||d.r.some(r=>(r[1]+r[2]).toLowerCase().replace(/\s+/g,'').includes(ql)));
   const by={};hits.forEach(d=>{(by[d.id.slice(0,2)]=by[d.id.slice(0,2)]||[]).push(d);});
-  return Object.keys(by).sort().map(g=>`<h3>${g} · ${esc(GROUPS[g]||'')}</h3><ul class="ops">${by[g].map(d=>{const pid=partOf(d);return `<li><button class="op catd" data-id="${d.id}"><b>${esc(d.t)}</b><span class="sub">${d.id} · ${d.r.length} поз.${pid?' · есть в 3D':''}</span></button>${open===d.id?`<div class="catbody">${pid?`<button class="chipbtn" data-show="${d.id}" aria-pressed="${!!(CATSHOW&&CATSHOW.id===d.id)}">${CATSHOW&&CATSHOW.id===d.id?'Убрать подсветку':'Показать на модели'}</button> `:'<span class="sub">Этой детали нет на модели (аксессуар или расходник).</span> '}<a class="chipbtn" target="_blank" rel="noopener" href="https://shop.maxbmw.com/fiche/DiagramsMain.aspx?vid=58482#${d.id}">Схема BMW</a>${rowsHTML(d)}</div>`:''}</li>`;}).join('')}</ul>`).join('')||'<p class="lead">Ничего не нашлось.</p>';}
+  return Object.keys(by).sort().map(g=>`<h3>${g} · ${esc(GROUPS[g]||'')}</h3><ul class="ops">${by[g].map(d=>{const pid=partOf(d);return `<li><button class="op catd" data-id="${d.id}"><b>${esc(d.t)}</b><span class="sub">${d.id} · ${d.r.length} поз.${pid?' · узел в 3D':' · схема без подсветки'}</span></button>${open===d.id?`<div class="catbody">${pid?`<button class="chipbtn" data-show="${d.id}" aria-pressed="${!!(CATSHOW&&CATSHOW.id===d.id)}">${CATSHOW&&CATSHOW.id===d.id?'Убрать подсветку':'Показать на модели'}</button> `:'<span class="sub">Этой детали нет на модели (аксессуар или расходник).</span> '}<a class="chipbtn" target="_blank" rel="noopener" href="https://shop.maxbmw.com/fiche/DiagramsMain.aspx?vid=58482#${d.id}">Схема BMW</a>${rowsHTML(d)}</div>`:''}</li>`;}).join('')}</ul>`).join('')||'<p class="lead">Ничего не нашлось.</p>';}
 function render(el){if(!DATA){el.innerHTML='<p class="lead">Загружаю каталог...</p>';load().then(()=>render(el));return;}
   el.innerHTML=`<h2>Каталог деталей BMW</h2><p class="lead">Все ${DATA.length} разделов официального каталога для R nineT Scrambler K23 (2015-2020): номер каждой детали, количество, замены номеров и оговорки «только для». Ищи по названию по-английски или по номеру.</p>
    <div class="search"><input id="catq" type="search" placeholder="например 11 12 или SPARK PLUG" value="${esc(q)}" aria-label="Поиск по каталогу"></div><div id="catl">${list()}</div>`;
   const inp=el.querySelector('#catq');inp.oninput=()=>{q=inp.value;el.querySelector('#catl').innerHTML=list();bind(el);};bind(el);}
-function show(d){const parts=d&&linkOf(d);setCatShow(parts?{id:d.id,label:d.id+' '+d.t,parts}:null);}
+function show(d,number){const parts=d&&linkOf(d,number);setCatShow(parts?{id:d.id,label:number||d.id+' '+d.t,parts}:null);}
 function bind(el){el.querySelectorAll('.catd').forEach(b=>b.onclick=()=>{open=open===b.dataset.id?null:b.dataset.id;
     const d=DATA.find(x=>x.id===open);if(CATSHOW&&(!d||CATSHOW.id!==d.id))show(d&&linkOf(d)?d:null);
     el.querySelector('#catl').innerHTML=list();bind(el);});
