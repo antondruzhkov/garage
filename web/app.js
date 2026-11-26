@@ -135,23 +135,29 @@ $('sheetX').onclick=()=>{if(sheetKind==='step')exitOp();else closeSheet();};
   sh.addEventListener('touchend',e=>{if(y0!=null)end(e);});})();
 
 /* ================= navigation + back ================= */
-let view='garage',sec='bike',opMode=false;
+let view='garage',sec='bike',opMode=false,catPreview=null;
 const SCREENS={service:$('scr-service'),catalog:$('scr-catalog'),custom:$('scr-custom'),cabinet:$('scr-cabinet')};
-function setView(v,opts){opts=opts||{};if(v!=='garage'&&sheetKind&&sheetKind!=='keep')closeSheet(true);
+function setView(v,opts={}){
+  const resumeCatalog=v==='catalog'&&!opts.open&&!opts.part?catPreview:null;
+  if(v!=='garage'&&sheetKind&&sheetKind!=='keep')closeSheet(true);
+  if(v!=='garage'&&catPreview)setSec(sec);
   if(opMode&&v!=='garage')exitOp(true);
   view=v;app.dataset.view=v;E.setPaused(v!=='garage');
   Object.keys(SCREENS).forEach(k=>{SCREENS[k].hidden=k!==v;});
   document.querySelectorAll('#tabbar button').forEach(b=>{if(b.dataset.view===v)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-  if(v==='service')renderService();else if(v==='catalog')renderCatalog(opts);else if(v==='custom')renderCustom();else if(v==='cabinet')renderCabinet();
-  if(SCREENS[v])SCREENS[v].scrollTop=0;
+  if(v==='service')renderService();else if(v==='catalog'&&!resumeCatalog)renderCatalog(opts);else if(v==='custom')renderCustom();else if(v==='cabinet')renderCabinet();
+  if(resumeCatalog){
+    SCREENS.catalog.scrollTop=resumeCatalog.scrollTop;
+    if(resumeCatalog.trigger.isConnected)resumeCatalog.trigger.focus({preventScroll:true});
+  }else if(SCREENS[v])SCREENS[v].scrollTop=0;
   syncBack();}
 document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>{if(b.dataset.view===view&&view==='garage'){E.homeView();return;}setView(b.dataset.view);});
 function back(){if(sheetKind){if(sheetKind==='step'){exitOp();return true;}closeSheet();return true;}
   if(opMode){exitOp();return true;}
   if(view!=='garage'){setView('garage');return true;}
-  if(E.tab==='cat'){catOff();return true;}
+  if(catPreview){catOff();return true;}
   return false;}
-function syncBack(){if(!inTG||!tgv('6.1'))return;const need=!!sheetKind||opMode||view!=='garage'||E.tab==='cat';try{need?TG.BackButton.show():TG.BackButton.hide();}catch(e){}}
+function syncBack(){if(!inTG||!tgv('6.1'))return;const need=!!sheetKind||opMode||view!=='garage'||!!catPreview;try{need?TG.BackButton.show():TG.BackButton.hide();}catch(e){}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(back())e.preventDefault();}});
 
 /* ================= header ================= */
@@ -173,7 +179,7 @@ const SECS=[['bike','Мотоцикл'],['engine','Двигатель'],['drive'
 const SEC_HINT={bike:'Контуры, цифры, источники',engine:'Такты, передачи, детали',drive:'Передачи, сцепление, кардан',brakes:'Диски, суппорты, ABS',elec:'Жгуты, блоки, датчики',dash:'Лампы и что они значат'};
 const secIdx=s=>SECS.findIndex(x=>x[0]===s);
 $('secDots').innerHTML=SECS.map(()=>'<i></i>').join('');
-function setSec(s,dir){sec=s;app.dataset.sec=s;document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sec===s));
+function setSec(s,dir){catPreview=null;sec=s;app.dataset.sec=s;document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sec===s));
   const i=secIdx(s),nm=$('secName');nm.textContent=SECS[i][1];
   if(dir){nm.classList.remove('in-l','in-r');void nm.offsetWidth;nm.classList.add(dir>0?'in-r':'in-l');}
   $('secTitle').setAttribute('aria-label',`Раздел ${SECS[i][1]}, ${i+1} из ${SECS.length}. Открыть список`);
@@ -217,7 +223,7 @@ let tapT=null,lastTap=0;
 H.tap=(x,y)=>{if(view!=='garage')return;const now=Date.now();
   if(now-lastTap<330){clearTimeout(tapT);tapT=null;lastTap=0;if(sheetKind==='part')closeSheet();E.select(null);E.homeView();return;}
   lastTap=now;clearTimeout(tapT);tapT=setTimeout(()=>{tapT=null;onTap(x,y);},280);};
-function onTap(x,y){if(opMode)return;
+function onTap(x,y){if(view!=='garage'||opMode||catPreview)return;
   const id=E.pickAt(x,y);if(!id){E.select(null);if(sheetKind==='part')closeSheet();return;}
   E.select(id);openPart(id);}
 const PNRE=/\b\d{2} \d{2} \d \d{3} \d{3}\b/;
@@ -246,7 +252,7 @@ function startOp(id){const o=E.OPS.find(x=>x.id===id);if(!o)return;
   if(!canOp(id)){openPro('op');return;}
   if(view!=='garage')setView('garage');closeSheet(true);
   opMode=true;app.classList.add('op');$('opbar').hidden=false;$('opTitle').textContent=o.t;
-  $('catPill').hidden=true;E.select(null);E.opOpen(id);track('op_opened',{id});renderStep();syncBack();requestAnimationFrame(()=>{syncInset();E.opResetView();});}
+  catPreview=null;$('catPill').hidden=true;E.select(null);E.opOpen(id);track('op_opened',{id});renderStep();syncBack();requestAnimationFrame(()=>{syncInset();E.opResetView();});}
 function renderStep(){const o=E.op;if(!o)return;const i=E.step,s=o.steps[i],z=ZONE[o.id]||'r',last=i===o.steps.length-1;
   const html=`<div class="stepno">ШАГ ${i+1} ИЗ ${o.steps.length} · ${esc(o.time)}</div>
    <div class="step"><h4>${esc(s.h)}</h4>
@@ -366,17 +372,33 @@ function catList(){const el=SCREENS.catalog.querySelector('#catl');const q=norm(
   el.innerHTML=head+(Object.keys(by).sort().map(g=>`<div class="cgroup">${g} · ${esc(CGROUPS[g]||'')}</div><ul class="list">${by[g].map(d=>diagHTML(d,q,numQ&&hits.length<=3)).join('')}</ul>`).join('')||'<p class="lead">Ничего не нашлось. Попробуй номер без пробелов или английское название.</p>');
   const a=el.querySelector('#catAll');if(a)a.onclick=()=>{catPart=null;catList();};
   el.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{catOpen=catOpen===b.dataset.d?null:b.dataset.d;catList();});
-  el.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>catShow(b.dataset.show,b.dataset.partNumber));}
+  el.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>catShow(b));}
 function diagHTML(d,q,auto){const open=catOpen===d.id||auto,link=E.CAT.linkOf(d);
   const hl=t=>{if(!q)return esc(t);const n=norm(t);return n.includes(q)?`<mark>${esc(t)}</mark>`:esc(t);};
   return `<li class="diag"><button data-d="${d.id}" aria-expanded="${open}"><b>${esc(d.t)}</b><span>${d.id} · ${d.r.length} поз.${link?' · узел в 3D':' · схема без подсветки'}</span></button>
    ${open?`<div class="body"><div class="row">${link?`<button class="btn primary" data-show="${d.id}">Показать узел в 3D${isPro()?'':' · PRO'}</button>`:'<span class="small muted">Для этой схемы нет подсветки на модели.</span>'}</div>
-   <table class="cat"><thead><tr><th>№</th><th>Номер BMW</th><th>Деталь</th><th>Шт</th></tr></thead><tbody>${d.r.map(r=>`<tr><td>${esc(r[0])}</td><td class="pn">${hl(r[1])}</td><td>${hl(r[2])}${r[4]?`<small>${esc(r[4])}</small>`:''}${E.CAT.linkOf(d,r[1])?`<button class="btn" data-show="${d.id}" data-part-number="${esc(r[1])}">Подсветить деталь${isPro()?'':' · PRO'}</button>`:''}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table>
+   <table class="cat"><thead><tr><th>№</th><th>Номер BMW</th><th>Деталь</th><th>Шт</th></tr></thead><tbody>${d.r.map(r=>{
+     const number=r[1],name=hl(r[2]);
+     const action=E.CAT.linkOf(d,number)?`<button class="linkbtn cat-part-link" data-show="${d.id}" data-part-number="${esc(number)}">${name} · 3D${isPro()?'':' · PRO'}</button>`:name;
+     return `<tr><td>${esc(r[0])}</td><td class="pn">${hl(number)}</td><td>${action}${r[4]?`<small>${esc(r[4])}</small>`:''}</td><td>${esc(r[3])}</td></tr>`;
+   }).join('')}</tbody></table>
    ${d.n&&d.n.length?`<p class="small muted">${d.n.map(esc).join('<br>')}</p>`:''}</div>`:''}</li>`;}
-function catShow(id,number){const d=CATDATA.find(x=>x.id===id);if(!d||!E.CAT.linkOf(d,number))return;if(!isPro()){openPro('cat');return;}
-  setView('garage');closeSheet(true);E.setTab('cat');E.CAT.show(d,number);document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed','false'));
-  $('catLbl').textContent=`Подсветка: ${number||d.id+' '+d.t}`;$('catPill').hidden=false;$('ctrPill').hidden=true;track('cat_show',{id,part:number});syncBack();}
-function catOff(){E.CAT.show(null);setSec(sec);}
+function catShow(trigger){
+  const {show:id,partNumber:number}=trigger.dataset;
+  const d=CATDATA.find(x=>x.id===id);
+  if(!d||!E.CAT.linkOf(d,number))return;
+  if(!isPro()){openPro('cat');return;}
+  const item=number?d.r.find(r=>r[1]===number):null;
+  const label=item?`${item[2]} · ${number}`:`${d.t} · ${d.id}`;
+  catPreview={scrollTop:SCREENS.catalog.scrollTop,trigger};
+  setView('garage');closeSheet(true);E.setTab('cat');E.CAT.show(d,number);
+  document.querySelectorAll('#secs button').forEach(b=>b.setAttribute('aria-pressed','false'));
+  $('catLbl').textContent=label;$('catLbl').title=label;
+  $('catPill').hidden=false;$('ctrPill').hidden=true;
+  $('catOff').focus({preventScroll:true});
+  track('cat_show',{id,part:number});syncBack();
+}
+function catOff(){if(catPreview)setView('catalog');}
 $('catOff').onclick=catOff;
 
 /* ================= custom ================= */

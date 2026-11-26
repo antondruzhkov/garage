@@ -74,7 +74,7 @@ input,select,textarea{font:inherit;color:var(--ink)}
 .exslider input{width:min(52vw,220px);accent-color:var(--hazard);height:44px}
 .infobtn{position:absolute;left:max(12px,var(--sal));bottom:12px;z-index:5;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:22px;border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);font-weight:600;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.14)}
 .catpill{position:absolute;left:max(12px,var(--sal));right:max(12px,var(--sar));top:10px;z-index:5;display:flex;align-items:center;gap:6px;padding:4px 4px 4px 14px;border-radius:24px;background:var(--hazard);color:var(--hazard-ink);font:600 13px/1.25 var(--f-body);box-shadow:0 4px 16px rgba(0,0,0,.18)}
-.catpill span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.catpill span{flex:1;min-width:0;overflow-wrap:anywhere}
 .catpill button{width:44px;height:40px;border:0;background:none;display:grid;place-items:center;flex:none}
 .app.op .fabs,.app.op .infobtn{display:none}
 
@@ -310,6 +310,7 @@ mark{background:color-mix(in srgb,var(--hazard) 55%,transparent);color:inherit;b
 @media (prefers-reduced-motion: reduce){.sheet{animation:none}.loader{transition:none}.lamp.b1,.lamp.b2,.lamp.b3,#lsym.b1{animation-duration:2s}}
 .kicker{font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .linkbtn{border:0;background:none;padding:0;color:var(--ink);text-decoration:underline;font-size:inherit;min-height:0}
+.cat-part-link{min-height:32px;text-align:left;white-space:normal;overflow-wrap:anywhere}
 .stepnav{position:sticky;bottom:-18px;background:var(--panel);margin:0 -2px -18px;padding:10px 2px 12px;border-top:1px solid var(--line)}
 .stepnav .disc{margin:10px 0 0}
 /* photo album */
